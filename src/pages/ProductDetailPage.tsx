@@ -390,10 +390,22 @@ const ProductDetailPage = () => {
             ? product.discount_price
             : product.price);
     if (isBuyNow) {
-      // Chuyển sang trang thanh toán với sản phẩm này (không thêm vào giỏ)
+      // Chuyển sang trang thanh toán với đầy đủ thông tin sản phẩm
       setShowBuyNowModal(false);
       setIsBuyNow(false);
-      window.location.href = `/checkout?product_id=${product.id}&quantity=${quantity}&color=${encodeURIComponent(selectedColor)}&size=${encodeURIComponent(selectedSize)}`;
+      const productData = {
+        id: product.id,
+        name: product.name,
+        price: finalPrice,
+        image: product.image_url,
+        quantity: quantity,
+        color: selectedColor,
+        size: selectedSize,
+        original_price: product.price,
+        discount_price: product.discount_price,
+        flashsale_price: discountedPrice
+      };
+      window.location.href = `/checkout?product=${encodeURIComponent(JSON.stringify(productData))}`;
       return;
     }
     // Thêm vào giỏ hàng như cũ

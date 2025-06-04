@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import { CreditCard, Truck, MapPin, Package, Tag, User, ChevronDown, ChevronUp, Clock, Edit2} from 'lucide-react';
 import { useUser } from '@supabase/auth-helpers-react';
 import { supabase } from '../lib/supabase';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import emailjs from '@emailjs/browser';
 
 interface Address {
@@ -109,7 +109,36 @@ const PAYMENT_METHODS: PaymentMethod[] = [
 ];
 
 function CheckoutPage() {
-  const { items, subtotal, clearCart } = useCart();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  let buyNowProduct = null;
+  const productParam = searchParams.get('product') || '';
+  if (productParam) {
+    try {
+      buyNowProduct = JSON.parse(decodeURIComponent(productParam));
+    } catch (e) {
+      buyNowProduct = null;
+    }
+  }
+
+  const { items: cartItems, subtotal: cartSubtotal, clearCart } = useCart();
+
+  const items = buyNowProduct
+    ? [{
+        product_id: buyNowProduct.id,
+        quantity: buyNowProduct.quantity,
+        price: buyNowProduct.price,
+        color: buyNowProduct.color,
+        size: buyNowProduct.size,
+        name: buyNowProduct.name,
+        image: buyNowProduct.image
+      }]
+    : cartItems;
+
+  const subtotal = buyNowProduct
+    ? buyNowProduct.price * buyNowProduct.quantity
+    : cartSubtotal;
+
   const [loading, setLoading] = useState(false);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
@@ -119,8 +148,6 @@ function CheckoutPage() {
   if (!userId) {
     userId = localStorage.getItem('sb-user-id') || undefined;
   }
-  // Log user id để debug
-  console.log('CheckoutPage userId:', userId);
   // Nếu không có user id, chuyển hướng về login
   if (!userId) {
     window.location.href = '/login';
@@ -143,6 +170,7 @@ function CheckoutPage() {
   const [districtCode, setDistrictCode] = useState('');
   const [wardCode, setWardCode] = useState('');
   const [shopNote, setShopNote] = useState('');
+  const isBuyNow = !!buyNowProduct;
 
   useEffect(() => {
     if (!userIdStr) return;
@@ -177,11 +205,18 @@ function CheckoutPage() {
       });
   }, [userIdStr]);
 
-  // Luôn load voucher liên quan khi items thay đổi
+  // Luôn load voucher liên quan khi items thay đổi, nhưng tránh lặp vô hạn
+  const prevItemsRef = React.useRef<any[]>([]);
   useEffect(() => {
-    loadAvailableVouchers();
+    // So sánh items mới và cũ, chỉ gọi loadAvailableVouchers khi thực sự khác
+    const itemsString = JSON.stringify(items);
+    const prevItemsString = JSON.stringify(prevItemsRef.current);
+    if (itemsString !== prevItemsString && !voucherLoading) {
+      loadAvailableVouchers();
+      prevItemsRef.current = items;
+    }
     // eslint-disable-next-line
-  }, [items]);
+  }, [items, voucherLoading]);
 
   // Lấy voucher liên quan đến giỏ hàng
   const loadAvailableVouchers = async () => {
@@ -399,7 +434,9 @@ function CheckoutPage() {
       await sendOrderConfirmationEmail(order);
 
       toast.success('Đặt hàng thành công!');
-      await clearCart();
+      if (!isBuyNow) {
+        await clearCart();
+      }
       window.location.href = '/profile?tab=orders';
     } catch (error) {
       console.error('Error creating order:', error);
@@ -670,8 +707,8 @@ function CheckoutPage() {
           </div>
 
           <div className="space-y-4">
-            {items.map((item) => (
-              <div key={`${item.id}-${item.color}-${item.size}`} className="flex gap-4">
+            {items.map((item, idx) => (
+              <div key={`${item.product_id ? item.product_id : ''}${item.color ? '-' + item.color : ''}${item.size ? '-' + item.size : ''}-${idx}`} className="flex gap-4">
                 <img
                   src={item.image}
                   alt={item.name}
