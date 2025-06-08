@@ -467,10 +467,10 @@ const ProductDetailPage = () => {
           <motion.div
             whileHover={{ scale: 1.04, rotateY: 8 }}
             transition={{ type: 'spring', stiffness: 200, damping: 18 }}
-            className="bg-white rounded-3xl shadow-2xl p-4 flex items-center justify-center min-h-[400px] md:min-h-[500px]"
+            className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-2 sm:p-4 flex items-center justify-center min-h-[320px] sm:min-h-[400px] md:min-h-[500px]"
             style={{ perspective: '1200px' }}
           >
-            <div className="aspect-square w-full rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden shadow-xl">
+            <div className="aspect-square w-full max-w-[320px] sm:max-w-full rounded-2xl sm:rounded-3xl bg-gray-100 flex items-center justify-center overflow-hidden shadow-xl">
               {loading ? (
                 <div className="animate-pulse w-2/3 h-2/3 bg-gray-300 rounded-2xl" />
               ) : (
@@ -483,7 +483,7 @@ const ProductDetailPage = () => {
                       target.src = 'https://via.placeholder.com/600x600?text=No+Image';
                     }
                   }}
-                  className="w-full h-full object-cover rounded-2xl transition-transform duration-500"
+                  className="w-full h-full object-cover rounded-2xl sm:rounded-3xl transition-transform duration-500"
                 />
               )}
             </div>
@@ -809,9 +809,9 @@ const ProductDetailPage = () => {
             <h3 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-500 to-blue-500 drop-shadow-lg flex items-center gap-2 mb-4 uppercase tracking-wider">
               <Star className="w-7 h-7 text-yellow-400 drop-shadow mr-2" /> Sản phẩm liên quan
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 justify-items-center">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
               {related.slice(relatedPage * relatedPerPage, (relatedPage + 1) * relatedPerPage).map(rp => (
-                <div key={rp.id} className="w-full max-w-[280px] flex-1">
+                <div key={rp.id} className="w-full">
                   <ProductCard product={rp} />
                 </div>
               ))}

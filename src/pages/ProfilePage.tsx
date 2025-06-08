@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { User, MapPin, ShoppingBag, Heart, KeyRound } from 'lucide-react';
+import { User, MapPin, ShoppingBag, Heart, KeyRound, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import defaultAvatar from '../assets/default-avatar.svg';
 import { useWishlist } from '../hooks/useWishlist';
@@ -1002,6 +1002,8 @@ export default function ProfilePage() {
   const returnTotalPages = Math.ceil(returnOrders.length / returnPerPage);
   const paginatedReturnOrders = returnOrders.slice((returnPage-1)*returnPerPage, returnPage*returnPerPage);
 
+  const [showTabDropdown, setShowTabDropdown] = useState(false);
+
   return (
     <div className="relative min-h-screen pt-32 pb-12 px-2 md:px-0 bg-gray-50 overflow-hidden">
       {/* Hiệu ứng động 3D blob */}
@@ -1051,6 +1053,7 @@ export default function ProfilePage() {
           <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
             {/* Tabs */}
             <div className="flex flex-col md:flex-row w-full">
+              {/* Tab Sidebar */}
               <div className="w-full md:w-64 bg-gradient-to-br from-primary-500 to-purple-600 p-4 md:p-6">
                 {/* Avatar Section */}
                 <div className="flex flex-col items-center mb-6">
@@ -1087,7 +1090,36 @@ export default function ProfilePage() {
                     <span className={`inline-block mt-2 px-3 py-1 text-xs font-semibold text-white rounded-full shadow ${badgeColor}`}>{badge}</span>
                   </div>
                 </div>
-                <div className="flex flex-col space-y-4 w-full">
+                {/* Mobile: Dropdown Tab */}
+                <div className="md:hidden mb-4 relative">
+                  <button
+                    className="flex items-center gap-2 px-4 py-3 rounded-lg bg-white text-primary-700 shadow-lg w-full justify-between"
+                    onClick={() => setShowTabDropdown(!showTabDropdown)}
+                  >
+                    {TABS.find(tab => tab.key === activeTab)?.icon}
+                    <span className="font-medium flex-1 text-left ml-2">{TABS.find(tab => tab.key === activeTab)?.label}</span>
+                    <Menu size={20} />
+                  </button>
+                  {showTabDropdown && (
+                    <div className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-lg z-20">
+                      {TABS.map(tab => (
+                        <button
+                          key={tab.key}
+                          onClick={() => {
+                            setActiveTab(tab.key);
+                            setShowTabDropdown(false);
+                          }}
+                          className={`flex items-center gap-2 w-full px-4 py-3 rounded-lg transition-all text-left ${activeTab === tab.key ? 'bg-primary-100 text-primary-700' : 'text-gray-700 hover:bg-gray-100'}`}
+                        >
+                          {tab.icon}
+                          <span className="font-medium">{tab.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Desktop: Sidebar Tab */}
+                <div className="hidden md:flex flex-col space-y-4 w-full">
                   {TABS.map((tab) => (
                     <motion.button
                       key={tab.key}
@@ -1264,6 +1296,33 @@ export default function ProfilePage() {
                                       onClick={() => { 
                                         setModalOpen(true); 
                                         setForm(address); 
+                                        setAddressForm({
+                                          city: address.city || '',
+                                          city_code: address.city_code || '',
+                                          district: address.district || '',
+                                          district_code: address.district_code || '',
+                                          ward: address.ward || '',
+                                          ward_code: address.ward_code || '',
+                                          address_line: address.address_line || '',
+                                          label: address.label || '',
+                                          is_default: address.is_default || false,
+                                        });
+                                        // Fetch lại danh sách quận/huyện
+                                        if (address.city_code) {
+                                          fetch(`https://provinces.open-api.vn/api/p/${address.city_code}?depth=2`)
+                                            .then(res => res.json())
+                                            .then(data => setDistricts(data.districts));
+                                        } else {
+                                          setDistricts([]);
+                                        }
+                                        // Fetch lại danh sách phường/xã
+                                        if (address.district_code) {
+                                          fetch(`https://provinces.open-api.vn/api/d/${address.district_code}?depth=2`)
+                                            .then(res => res.json())
+                                            .then(data => setWards(data.wards));
+                                        } else {
+                                          setWards([]);
+                                        }
                                       }}
                                       className="px-3 py-1 rounded bg-primary-100 text-primary-700 font-semibold hover:bg-primary-200 transition"
                                     >
@@ -1413,12 +1472,8 @@ export default function ProfilePage() {
                               </div>
                               <div className="mt-6 flex justify-end gap-3">
                                 <button
-                                  onClick={() => {
-                                    setShowRefundRequestModal(false);
-                                    setRefundReason('');
-                                    setRefundImage(null);
-                                    setShowOrderModal(false);
-                                  }}
+                                  type="button"
+                                  onClick={() => setModalOpen(false)}
                                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
                                 >
                                   Hủy
@@ -2388,6 +2443,46 @@ export default function ProfilePage() {
           </motion.div>
         </motion.div>
       )}
+
+      {/* Modal xác nhận xóa địa chỉ */}
+      <AnimatePresence>
+        {deleteModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md"
+            >
+              <h3 className="text-xl font-bold mb-4 text-primary-700">Xác nhận xóa địa chỉ</h3>
+              <p>Bạn có chắc chắn muốn xóa địa chỉ này không?</p>
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setDeleteModalOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={async () => {
+                    await handleConfirmDelete();
+                    setDeleteModalOpen(false);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600"
+                >
+                  Xóa
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 } 

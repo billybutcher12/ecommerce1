@@ -116,7 +116,7 @@ function normalizeProduct(product: any) {
 
 // Custom Arrow cho react-slick (3D động, gradient, đẹp)
 function SlickArrow(props: any) {
-  const { className, style, onClick, direction } = props;
+  const { className = '', style, onClick, direction } = props;
   const btnRef = useRef(null);
 
   // Hiệu ứng 3D nghiêng theo chuột
@@ -126,30 +126,33 @@ function SlickArrow(props: any) {
     const rect = btn.getBoundingClientRect();
     const x = e.clientX - rect.left - rect.width / 2;
     const y = e.clientY - rect.top - rect.height / 2;
-    btn.style.transform = `perspective(400px) scale(1.12) rotateY(${-x / 10}deg) rotateX(${y / 10}deg)`;
+    btn.style.transform = `perspective(400px) scale(1.08) rotateY(${-x / 10}deg) rotateX(${y / 12}deg)`;
     btn.style.boxShadow = '0 8px 32px 0 rgba(128,0,255,0.25), 0 0 32px #a78bfa';
+    btn.style.background = 'linear-gradient(135deg, #c4b5fd 0%, #60a5fa 100%)';
   };
   const handleMouseLeave = () => {
     const btn = btnRef.current as HTMLButtonElement | null;
     if (!btn) return;
     btn.style.transform = 'perspective(400px) scale(1)';
-    btn.style.boxShadow = '0 4px 16px 0 rgba(128,0,255,0.12)';
+    btn.style.boxShadow = '0 2px 8px 0 rgba(128,0,255,0.10)';
+    btn.style.background = 'linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%)';
   };
 
   return (
     <button
       ref={btnRef}
       className={
-        `${className} !flex !items-center !justify-center !bg-gradient-to-br !from-purple-400 !to-blue-400 !shadow-2xl !rounded-full !w-16 !h-16 !z-20 !absolute !top-1/2 !-translate-y-1/2 border-4 border-white transition-all duration-300` +
-        (direction === 'prev' ? ' !left-[-36px]' : ' !right-[-36px]')
+        `${className} flex items-center justify-center bg-gradient-to-br from-purple-400 to-blue-400 shadow-lg rounded-full w-11 h-11 z-20 absolute top-1/2 -translate-y-1/2 border-2 border-white/70 transition-all duration-200 hover:scale-110 active:scale-95`
+        + (direction === 'prev' ? ' left-[-18px]' : ' right-[-18px]')
       }
       style={{
         ...style,
         color: '#fff',
-        fontSize: 36,
-        boxShadow: '0 4px 16px 0 rgba(128,0,255,0.12)',
+        fontSize: 28,
         outline: 'none',
         cursor: 'pointer',
+        boxShadow: '0 2px 8px 0 rgba(128,0,255,0.10)',
+        background: 'linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%)',
       }}
       onClick={onClick}
       onMouseMove={handleMouseMove}
@@ -157,9 +160,9 @@ function SlickArrow(props: any) {
       aria-label={direction === 'prev' ? 'Trước' : 'Sau'}
     >
       {direction === 'prev' ? (
-        <svg width="36" height="36" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="24 8 12 18 24 28"/></svg>
+        <svg width="28" height="28" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="19 6 9 14 19 22"/></svg>
       ) : (
-        <svg width="36" height="36" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="12 8 24 18 12 28"/></svg>
+        <svg width="28" height="28" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 19 14 9 22"/></svg>
       )}
     </button>
   );
@@ -264,7 +267,7 @@ const HomePage = () => {
     <ParallaxProvider>
       <div className="min-h-screen bg-white text-black relative overflow-x-hidden">
         {/* Hero Section */}
-        <section className="relative min-h-[60vh] md:min-h-screen flex items-center justify-center py-12 md:py-0">
+        <section className="relative min-h-[50vh] sm:min-h-[60vh] md:min-h-screen flex items-center justify-center py-8 sm:py-12 md:py-0">
           {/* Parallax Background Image */}
           <Parallax speed={-30} className="absolute inset-0 z-0">
             <img
@@ -275,24 +278,23 @@ const HomePage = () => {
             <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/30 to-white/80" />
           </Parallax>
           {/* Blob pastel */}
-          <div className="absolute top-[-80px] left-[-80px] w-[250px] h-[250px] bg-purple-100 opacity-30 rounded-full blur-2xl" />
-          <div className="absolute bottom-[-100px] right-[-100px] w-[300px] h-[300px] bg-pink-100 opacity-20 rounded-full blur-3xl" />
+          <div className="absolute top-[-40px] sm:top-[-80px] left-[-40px] sm:left-[-80px] w-[150px] h-[150px] sm:w-[250px] sm:h-[250px] bg-purple-100 opacity-30 rounded-full blur-2xl" />
+          <div className="absolute bottom-[-50px] sm:bottom-[-100px] right-[-50px] sm:right-[-100px] w-[180px] h-[180px] sm:w-[300px] sm:h-[300px] bg-pink-100 opacity-20 rounded-full blur-3xl" />
           {/* Content */}
           <div className="container mx-auto px-4 relative z-10 text-center">
             <div className="max-w-4xl mx-auto">
               <motion.h1
-                className="text-4xl sm:text-6xl md:text-8xl font-black tracking-tighter text-white mb-6 md:mb-8 drop-shadow-[0_4px_32px_rgba(128,0,255,0.25)]"
+                className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-white mb-4 sm:mb-6 md:mb-8 drop-shadow-[0_4px_32px_rgba(128,0,255,0.25)]"
                 initial={{ opacity: 0, y: 60 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1 }}
               >
-                LUXE
-                <br />
+                <span className="block mb-2 sm:mb-4">LUXE</span>
                 <span className="text-purple-400 drop-shadow-[0_2px_16px_rgba(168,85,247,0.35)]">STORY</span>
               </motion.h1>
 
               <motion.p
-                className="text-lg sm:text-xl md:text-2xl text-white mb-8 md:mb-12 drop-shadow-[0_2px_8px_rgba(0,0,0,0.18)]"
+                className="text-base sm:text-lg md:text-xl lg:text-2xl text-white mb-6 sm:mb-8 md:mb-12 drop-shadow-[0_2px_8px_rgba(0,0,0,0.18)] px-4 sm:px-0 max-w-2xl mx-auto"
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
@@ -301,22 +303,28 @@ const HomePage = () => {
               </motion.p>
 
               <motion.div
-                className="flex flex-col md:flex-row justify-center gap-4 md:gap-6"
+                className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 md:gap-6 px-4 sm:px-0"
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.8 }}
               >
                 <Link
                   to="/products"
-                  className="px-12 py-5 bg-purple-600 text-white font-bold text-xl rounded-full hover:bg-purple-700 transition-colors duration-300 shadow-xl hover:shadow-2xl drop-shadow-lg"
+                  className="w-full sm:w-auto px-6 sm:px-8 md:px-12 py-3 sm:py-4 md:py-5 bg-purple-600 text-white font-bold text-base sm:text-lg md:text-xl rounded-full hover:bg-purple-700 transition-all duration-300 shadow-xl hover:shadow-2xl drop-shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
                 >
-                  Khám phá ngay
+                  <span>Khám phá ngay</span>
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
                 </Link>
                 <Link
                   to="/about"
-                  className="px-12 py-5 bg-white/20 backdrop-blur-sm text-white font-bold text-xl rounded-full hover:bg-white/30 transition-colors duration-300 border-2 border-white/30 shadow-xl hover:shadow-2xl drop-shadow-lg"
+                  className="w-full sm:w-auto px-6 sm:px-8 md:px-12 py-3 sm:py-4 md:py-5 bg-white/20 backdrop-blur-sm text-white font-bold text-base sm:text-lg md:text-xl rounded-full hover:bg-white/30 transition-all duration-300 border-2 border-white/30 shadow-xl hover:shadow-2xl drop-shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
                 >
-                  Câu chuyện của chúng tôi
+                  <span>Câu chuyện của chúng tôi</span>
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </Link>
               </motion.div>
             </div>
@@ -341,32 +349,32 @@ const HomePage = () => {
                 <Slider
                   dots={false}
                   infinite={activeFlashSaleItems.length > 4}
-                  speed={700}
+                  speed={500}
                   slidesToShow={4}
                   slidesToScroll={1}
                   arrows={true}
-                  nextArrow={<SlickArrow direction="next" />}
-                  prevArrow={<SlickArrow direction="prev" />}
-                  cssEase="cubic-bezier(0.77, 0, 0.175, 1)"
+                  nextArrow={<SlickArrow direction="next" className="hidden sm:flex" />}
+                  prevArrow={<SlickArrow direction="prev" className="hidden sm:flex" />}
+                  swipeToSlide={true}
+                  touchThreshold={12}
+                  cssEase="ease-in-out"
                   responsive={[
-                    { breakpoint: 1024, settings: { slidesToShow: 3 } },
-                    { breakpoint: 768, settings: { slidesToShow: 2 } },
-                    { breakpoint: 480, settings: { slidesToShow: 1 } },
+                    { breakpoint: 1024, settings: { slidesToShow: 3, infinite: activeFlashSaleItems.length > 3, arrows: true } },
+                    { breakpoint: 768, settings: { slidesToShow: 2, infinite: activeFlashSaleItems.length > 2, arrows: true } },
+                    { breakpoint: 640, settings: { slidesToShow: 2, infinite: activeFlashSaleItems.length > 2, arrows: false } },
                   ]}
                 >
                   {activeFlashSaleItems.map(item => (
-                    <div key={item.id} className="px-2">
-                      <div className="relative min-w-[280px] max-w-[340px] min-h-[520px] p-4 bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center transition-all duration-300 hover:shadow-purple-200">
-                        <ProductCard
-                          product={{
-                            ...normalizeProduct(item.product),
-                            flashsale: item.flashsale,
-                          }}
-                          discountedPrice={calculateDiscountedPrice(item)}
-                          showAddToCart={true}
-                          onAddToCartClick={handleAddToCartClick}
-                        />
-                      </div>
+                    <div key={item.id} className="px-1 sm:px-2">
+                      <ProductCard
+                        product={{
+                          ...normalizeProduct(item.product),
+                          flashsale: item.flashsale,
+                        }}
+                        discountedPrice={calculateDiscountedPrice(item)}
+                        showAddToCart={true}
+                        onAddToCartClick={handleAddToCartClick}
+                      />
                     </div>
                   ))}
                 </Slider>
@@ -581,13 +589,30 @@ const HomePage = () => {
                   <div className="text-center text-gray-500 py-20">Đang tải sản phẩm...</div>
                 ) : (
                   <div className="max-w-6xl mx-auto px-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+                    <Slider
+                      dots={false}
+                      infinite={filteredProducts.length > 4}
+                      speed={500}
+                      slidesToShow={4}
+                      slidesToScroll={1}
+                      arrows={true}
+                      nextArrow={<SlickArrow direction="next" className="hidden sm:flex" />}
+                      prevArrow={<SlickArrow direction="prev" className="hidden sm:flex" />}
+                      swipeToSlide={true}
+                      touchThreshold={12}
+                      cssEase="ease-in-out"
+                      responsive={[
+                        { breakpoint: 1024, settings: { slidesToShow: 3, infinite: filteredProducts.length > 3, arrows: true } },
+                        { breakpoint: 768, settings: { slidesToShow: 2, infinite: filteredProducts.length > 2, arrows: true } },
+                        { breakpoint: 640, settings: { slidesToShow: 2, infinite: filteredProducts.length > 2, arrows: false } },
+                      ]}
+                    >
                       {filteredProducts.map((item) => {
                         // Kiểm tra nếu là sản phẩm flash sale
                         const flashSaleItem = activeFlashSaleItems.find(f => f.product.id === item.id);
                         if (flashSaleItem) {
                           return (
-                            <div key={item.id} className="transform hover:scale-105 transition-transform duration-300">
+                            <div key={item.id} className="px-1 sm:px-2">
                               <ProductCard 
                                 product={{ ...normalizeProduct(flashSaleItem.product), flashsale: flashSaleItem.flashsale }}
                                 discountedPrice={calculateDiscountedPrice(flashSaleItem)}
@@ -598,12 +623,12 @@ const HomePage = () => {
                         }
                         // Sản phẩm không flash sale
                         return (
-                          <div key={item.id} className="transform hover:scale-105 transition-transform duration-300">
+                          <div key={item.id} className="px-1 sm:px-2">
                             <ProductCard product={item} showAddToCart />
                           </div>
                         );
                       })}
-                    </div>
+                    </Slider>
                     <div className="text-center mt-8">
                       <Link 
                         to={`/products${filter !== 'all' ? `?filter=${filter}` : ''}`}
@@ -638,32 +663,31 @@ const HomePage = () => {
             </motion.div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-20">
-              <div className="text-center">
-                <div className="text-4xl md:text-5xl font-black text-purple-600 mb-2">30+</div>
-                <div className="text-gray-600">Năm kinh nghiệm</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 md:gap-6 mb-8 sm:mb-12 md:mb-16">
+              <div className="text-center bg-white rounded-xl shadow p-2 sm:p-3 md:p-4 min-h-[70px] flex flex-col items-center justify-center">
+                <div className="text-lg sm:text-2xl md:text-4xl font-black text-purple-600 mb-0.5 sm:mb-1">30+</div>
+                <div className="text-[10px] sm:text-xs md:text-sm text-gray-600 leading-tight">Năm kinh nghiệm</div>
               </div>
-              <div className="text-center">
-                <div className="text-4xl md:text-5xl font-black text-purple-600 mb-2">50k+</div>
-                <div className="text-gray-600">Khách hàng hài lòng</div>
+              <div className="text-center bg-white rounded-xl shadow p-2 sm:p-3 md:p-4 min-h-[70px] flex flex-col items-center justify-center">
+                <div className="text-lg sm:text-2xl md:text-4xl font-black text-purple-600 mb-0.5 sm:mb-1">50k+</div>
+                <div className="text-[10px] sm:text-xs md:text-sm text-gray-600 leading-tight">Khách hàng hài lòng</div>
               </div>
-              <div className="text-center">
-                <div className="text-4xl md:text-5xl font-black text-purple-600 mb-2">1000+</div>
-                <div className="text-gray-600">Sản phẩm độc đáo</div>
+              <div className="text-center bg-white rounded-xl shadow p-2 sm:p-3 md:p-4 min-h-[70px] flex flex-col items-center justify-center">
+                <div className="text-lg sm:text-2xl md:text-4xl font-black text-purple-600 mb-0.5 sm:mb-1">1000+</div>
+                <div className="text-[10px] sm:text-xs md:text-sm text-gray-600 leading-tight">Sản phẩm độc đáo</div>
               </div>
-              <div className="text-center">
-                <div className="text-4xl md:text-5xl font-black text-purple-600 mb-2">15+</div>
-                <div className="text-gray-600">Giải thưởng</div>
+              <div className="text-center bg-white rounded-xl shadow p-2 sm:p-3 md:p-4 min-h-[70px] flex flex-col items-center justify-center">
+                <div className="text-lg sm:text-2xl md:text-4xl font-black text-purple-600 mb-0.5 sm:mb-1">15+</div>
+                <div className="text-[10px] sm:text-xs md:text-sm text-gray-600 leading-tight">Giải thưởng</div>
               </div>
             </div>
 
             {/* Timeline */}
             <div className="relative">
               {/* Timeline Line */}
-              <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-purple-200"></div>
-
+              <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-purple-200"></div>
               {/* Timeline Items */}
-              <div className="space-y-20">
+              <div className="flex flex-col gap-10 sm:gap-14 md:gap-20">
                 <TimelineItem
                   title="Thiết kế"
                   description="Quá trình sáng tạo và phát triển mẫu thiết kế"
@@ -834,32 +858,32 @@ const TimelineItem = ({
   position: 'left' | 'right';
 }) => (
   <motion.div
-    className={`flex flex-col md:flex-row items-center gap-8 ${position === 'right' ? 'md:flex-row-reverse' : ''}`}
+    className={`flex flex-col md:flex-row items-center gap-4 sm:gap-8 md:gap-12 ${position === 'right' ? 'md:flex-row-reverse' : ''}`}
     initial={{ opacity: 0, y: 40 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
     transition={{ duration: 0.7 }}
   >
     {/* Content */}
-    <div className={`w-1/2 ${position === 'right' ? 'text-right' : ''}`}>
-      <div className="bg-white p-8 rounded-2xl shadow-lg">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="p-3 bg-purple-100 text-purple-600 rounded-full">
+    <div className={`w-full md:w-1/2 ${position === 'right' ? 'md:text-right' : ''}`}>
+      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-lg">
+        <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
+          <div className="p-2 sm:p-3 bg-purple-100 text-purple-600 rounded-full">
             {icon}
           </div>
-          <h3 className="text-2xl font-bold">{title}</h3>
+          <h3 className="text-lg sm:text-xl md:text-2xl font-bold">{title}</h3>
         </div>
-        <p className="text-gray-600">{description}</p>
+        <p className="text-xs sm:text-sm md:text-base text-gray-600">{description}</p>
       </div>
     </div>
 
     {/* Timeline Dot */}
-    <div className="relative z-10">
-      <div className="w-8 h-8 bg-purple-600 rounded-full border-4 border-white"></div>
+    <div className="relative z-10 my-4 md:my-0">
+      <div className="w-5 h-5 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-purple-600 rounded-full border-4 border-white mx-auto"></div>
     </div>
 
     {/* Image */}
-    <div className="w-1/2">
+    <div className="w-full md:w-1/2">
       <div className="relative aspect-video rounded-2xl overflow-hidden shadow-lg">
         <img
           src={imageUrl}

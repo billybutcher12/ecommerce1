@@ -306,36 +306,21 @@ const Footer = () => {
         </div>
       </div>
       {/* Mini music player góc phải với hiệu ứng 3D */}
-      <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-3">
+      <div className="fixed bottom-8 left-8 z-50 flex flex-col items-end gap-3">
         {minimized ? (
           <div className="flex flex-col items-end gap-3">
             <button
               onClick={() => setMinimized(false)}
-              className="bg-gradient-to-br from-purple-600 via-pink-500 to-red-500 text-white rounded-full shadow-xl p-4 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-pink-200 border-2 border-white"
+              className="rounded-full shadow-lg p-4 transition-all duration-300 focus:outline-none border-2 border-white bg-gradient-to-br from-[#e0c3fc] to-white hover:from-[#a259ec] hover:to-[#e0c3fc]"
               aria-label="Mở trình phát nhạc"
               title="Mở trình phát nhạc"
-              style={{ 
-                boxShadow: '0 0 20px #ff00ff, 0 0 40px #00ffff, 0 0 0 2px #fff1 inset',
-                background: 'linear-gradient(135deg, #ff00ff 0%, #00ffff 50%, #ff00ff 100%)'
+              style={{
+                boxShadow: '0 4px 24px 0 #e0c3fc',
               }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-7 h-7">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#a259ec" strokeWidth={2.5} className="w-7 h-7">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-2v13" />
                 <circle cx="6" cy="18" r="3" />
-              </svg>
-            </button>
-            <button
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="bg-gradient-to-br from-purple-600 via-pink-500 to-red-500 text-white rounded-full shadow-xl p-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-pink-200 border-2 border-white"
-              aria-label="Cuộn lên đầu trang"
-              title="Cuộn lên đầu trang"
-              style={{ 
-                boxShadow: '0 0 20px #ff00ff, 0 0 40px #00ffff, 0 0 0 2px #fff1 inset',
-                background: 'linear-gradient(135deg, #ff00ff 0%, #00ffff 50%, #ff00ff 100%)'
-              }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-7 h-7">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
               </svg>
             </button>
           </div>

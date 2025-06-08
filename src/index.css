@@ -10,4 +10,7 @@
 .custom-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
 }
-
+.slick-arrow::before {
+  display: none !important;
+  content: none !important;
+}

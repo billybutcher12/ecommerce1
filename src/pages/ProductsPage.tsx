@@ -283,6 +283,8 @@ const ProductsPage = () => {
   const [selectedColor, setSelectedColor] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -632,7 +634,7 @@ const ProductsPage = () => {
       <div className="pt-8">
         <div className="flex flex-col lg:flex-row gap-8 container mx-auto px-4 py-8">
           {/* Sidebar - Ẩn trên mobile, hiện khi click button */}
-          <div className="lg:w-1/4 w-full px-2 md:px-0">
+          <div className="lg:w-1/4 w-full px-2 md:px-0 hidden lg:block">
             <button 
               onClick={() => setShowCategory(!showCategory)}
               className="lg:hidden w-full bg-primary-600 text-white py-3 px-4 rounded-lg flex items-center justify-between mb-4"
@@ -799,6 +801,164 @@ const ProductsPage = () => {
             </div>
           </div>
 
+          {/* Nút icon tròn nổi mở bộ lọc trên mobile */}
+          <button
+            className="fixed bottom-4 left-4 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 shadow-xl flex items-center justify-center text-white text-3xl border-2 border-white/80 lg:hidden"
+            onClick={() => setShowFilterModal(true)}
+            aria-label="Bộ lọc sản phẩm"
+          >
+            <svg width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/></svg>
+          </button>
+
+          {/* Modal bộ lọc trên mobile */}
+          {showFilterModal && (
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40">
+              <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl p-4 max-h-[90vh] overflow-y-auto animate-fade-in relative">
+                <button
+                  className="absolute top-3 right-3 w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-xl text-gray-600 hover:bg-gray-200"
+                  onClick={() => setShowFilterModal(false)}
+                  aria-label="Đóng bộ lọc"
+                >
+                  ×
+                </button>
+                {/* Copy toàn bộ nội dung sidebar PC vào đây, bỏ các class lg:hidden/hidden lg:block */}
+                <div className="mb-6">
+                  <span className="font-bold text-lg">Danh mục</span>
+                  <ul className="mb-6 space-y-2 mt-2">
+                    <li
+                      className={`cursor-pointer py-2 px-3 rounded-lg transition-all duration-200 ${!selectedCategory ? 'bg-primary-100 text-primary-700 font-semibold shadow-md' : 'hover:bg-gray-100 hover:shadow-sm'}`}
+                      onClick={() => { handleSelectCategory(null); setShowFilterModal(false); }}
+                    >
+                      Tất cả
+                    </li>
+                    {categories.map((cat) => (
+                      <li
+                        key={cat.id}
+                        className={`cursor-pointer py-2 px-3 rounded-lg transition-all duration-200 ${selectedCategory === cat.id ? 'bg-primary-100 text-primary-700 font-semibold shadow-md' : 'hover:bg-gray-100 hover:shadow-sm'}`}
+                        onClick={() => { handleSelectCategory(cat.id); setShowFilterModal(false); }}
+                      >
+                        {cat.name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {/* Price Range Filter */}
+                <div className="mb-6">
+                  <h3 className="font-bold text-lg mb-4">Khoảng giá</h3>
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="number"
+                      min={typeof minPrice === 'number' ? minPrice : 0}
+                      max={typeof priceRange[1] === 'number' ? priceRange[1] : 1000000}
+                      value={priceRange[0]}
+                      onChange={e => setPriceRange([Number(e.target.value), typeof priceRange[1] === 'number' ? priceRange[1] : 1000000])}
+                      className="w-24 p-2 border rounded focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
+                      placeholder="Từ"
+                    />
+                    <span className="mx-2">-</span>
+                    <input
+                      type="number"
+                      min={typeof priceRange[0] === 'number' ? priceRange[0] : 0}
+                      max={typeof maxPrice === 'number' ? maxPrice : 1000000}
+                      value={priceRange[1]}
+                      onChange={e => setPriceRange([typeof priceRange[0] === 'number' ? priceRange[0] : 0, Number(e.target.value)])}
+                      className="w-24 p-2 border rounded focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
+                      placeholder="Đến"
+                    />
+                  </div>
+                  <div className="text-sm text-gray-500">Từ {priceRange[0].toLocaleString('vi-VN')}₫ đến {priceRange[1].toLocaleString('vi-VN')}₫</div>
+                </div>
+                {/* Sort Options */}
+                <div className="mb-6">
+                  <h3 className="font-bold text-lg mb-4">Sắp xếp</h3>
+                  <select
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value)}
+                    className="w-full p-2 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all duration-200"
+                  >
+                    <option value="latest">Mới nhất</option>
+                    <option value="price_asc">Giá tăng dần</option>
+                    <option value="price_desc">Giá giảm dần</option>
+                    <option value="name_asc">Tên A-Z</option>
+                    <option value="name_desc">Tên Z-A</option>
+                  </select>
+                </div>
+                {/* Lọc Size */}
+                {allSizes.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="font-bold text-lg mb-4">Size</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {allSizes.map(size => (
+                        <button
+                          key={size}
+                          className={`px-3 py-1 rounded-lg border text-sm font-medium ${selectedSizes.includes(size) ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300'}`}
+                          onClick={() => setSelectedSizes(selectedSizes.includes(size) ? selectedSizes.filter(s => s !== size) : [...selectedSizes, size])}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Lọc Màu */}
+                {allColors.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="font-bold text-lg mb-4">Màu sắc</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {allColors.map(color => (
+                        <button
+                          key={color}
+                          className={`px-3 py-1 rounded-lg border text-sm font-medium transition-colors duration-150 ${selectedColors.includes(color) ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-primary-50'}`}
+                          style={{ minWidth: 48 }}
+                          onClick={() => setSelectedColors(selectedColors.includes(color) ? selectedColors.filter(c => c !== color) : [...selectedColors, color])}
+                          title={color}
+                        >
+                          {color}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Filter số sao */}
+                <div className="mb-6">
+                  <h3 className="font-bold text-lg mb-4">Số sao</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {[5,4,3,2,1].map(star => (
+                      <button
+                        key={star}
+                        className={`px-3 py-1 rounded-lg border text-sm font-medium flex items-center gap-1 ${selectedRatings.includes(star) ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-white text-yellow-500 border-gray-300'}`}
+                        onClick={() => setSelectedRatings(selectedRatings.includes(star) ? selectedRatings.filter(s => s !== star) : [...selectedRatings, star])}
+                      >
+                        {star} <svg className="inline w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.967a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.966c.3.922-.755 1.688-1.54 1.118l-3.38-2.454a1 1 0 00-1.175 0l-3.38 2.454c-.784.57-1.838-.196-1.54-1.118l1.287-3.966a1 1 0 00-.364-1.118L2.049 9.394c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.967z"/></svg>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Filter sản phẩm giảm giá vào sidebar (trước filter size): */}
+                <div className="mb-6">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={onlyDiscount}
+                      onChange={e => setOnlyDiscount(e.target.checked)}
+                      className="w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <span className="font-bold text-lg">Chỉ hiện sản phẩm đang giảm giá</span>
+                  </label>
+                </div>
+                {/* Nút Xóa bộ lọc ở cuối sidebar: */}
+                <div className="mt-8 flex justify-center">
+                  <button
+                    onClick={handleClearFilters}
+                    className="px-6 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold hover:bg-primary-100 hover:text-primary-700 transition-all shadow"
+                  >
+                    Xóa bộ lọc
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Main Content */}
           <main className="lg:w-3/4 w-full">
             {/* Search Bar */}
@@ -831,7 +991,7 @@ const ProductsPage = () => {
             </div>
 
             {/* Products Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
               {paginatedProducts.length === 0 ? (
                 <div className="col-span-full text-center py-16">
                   <div className="text-gray-500 text-lg mb-4">Không tìm thấy sản phẩm phù hợp</div>

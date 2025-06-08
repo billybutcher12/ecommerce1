@@ -112,14 +112,14 @@ const ProductCard = ({ product, discountedPrice, showAddToCart, className, onAdd
       <Link
         to={`/products/${product.id}`}
         className={
-          "block group flex flex-col items-center bg-white rounded-2xl shadow-xl p-5 transition-all duration-500 hover:shadow-2xl hover:scale-105 hover:-rotate-2 hover:bg-gradient-to-br hover:from-purple-100 hover:to-blue-50 relative " +
+          "block group flex flex-col items-center bg-white rounded-2xl shadow-xl p-2 sm:p-5 transition-all duration-500 hover:shadow-2xl hover:scale-105 hover:-rotate-2 hover:bg-gradient-to-br hover:from-purple-100 hover:to-blue-50 relative " +
           (className || '')
         }
-        style={{ perspective: '1000px', minHeight: 440 }}
+        style={{ perspective: '1000px', minHeight: 'auto', height: '100%' }}
         tabIndex={0}
       >
         {/* Product Image */}
-        <div className="aspect-[3/4] w-full max-w-[220px] bg-secondary-100 relative overflow-hidden rounded-2xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 mb-4 flex-shrink-0" style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)', transform: 'translateZ(0)' }}>
+        <div className="aspect-[3/4] w-full max-w-[160px] sm:max-w-[220px] bg-secondary-100 relative overflow-hidden rounded-2xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 mb-2 sm:mb-4 flex-shrink-0" style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)', transform: 'translateZ(0)' }}>
           <img
             src={imageUrl}
             alt={product.name}
@@ -150,9 +150,9 @@ const ProductCard = ({ product, discountedPrice, showAddToCart, className, onAdd
           </button>
         </div>
         {/* Product Info */}
-        <h3 className="font-bold text-base md:text-lg text-primary-700 mb-1 text-center transition-colors group-hover:text-purple-600 line-clamp-2 min-h-[44px]">{product.name}</h3>
+        <h3 className="font-bold text-sm sm:text-base md:text-lg text-primary-700 mb-1 text-center transition-colors group-hover:text-purple-600 line-clamp-2 min-h-[36px] sm:min-h-[44px]">{product.name}</h3>
         {/* Rating, Sold, Discount */}
-        <div className="flex items-center gap-2 text-sm text-gray-700 mb-1 justify-center">
+        <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-gray-700 mb-1 justify-center">
           {avgRating !== null && (
             <span className="flex items-center gap-1">
               {avgRating.toFixed(1)} <Star size={14} className="text-yellow-400 inline-block" fill="#facc15" />
@@ -163,7 +163,7 @@ const ProductCard = ({ product, discountedPrice, showAddToCart, className, onAdd
           )}
         </div>
         {/* Giá */}
-        <p className="font-bold text-lg">
+        <p className="font-bold text-base sm:text-lg">
           {typeof discountedPrice === 'number' && discountedPrice < product.price ? (
             <>
               <span className="text-purple-700 font-bold mr-2">
@@ -188,8 +188,8 @@ const ProductCard = ({ product, discountedPrice, showAddToCart, className, onAdd
             )
           )}
         </p>
-        <p className="text-sm text-secondary-600 line-clamp-2 mb-2 min-h-[36px] text-center">{product.description}</p>
-        <div className="flex items-center justify-center space-x-2 min-h-[20px] mb-3">
+        <p className="text-xs sm:text-sm text-secondary-600 line-clamp-2 mb-1 sm:mb-2 min-h-[32px] sm:min-h-[36px] text-center">{product.description}</p>
+        <div className="flex items-center justify-center space-x-1 sm:space-x-2 min-h-[16px] sm:min-h-[20px] mb-2 sm:mb-3">
           {Array.isArray(colors) && colors.length > 0 && colors.slice(0, 3).map((color, index) => (
             <span 
               key={index}
@@ -225,7 +225,7 @@ const ProductCard = ({ product, discountedPrice, showAddToCart, className, onAdd
           whileHover={{ scale: product.stock !== 0 ? 1.06 : 1, rotateX: product.stock !== 0 ? 6 : 0, boxShadow: product.stock !== 0 ? '0 8px 32px 0 rgba(80, 0, 200, 0.18)' : 'none' }}
           whileTap={{ scale: product.stock !== 0 ? 0.97 : 1, rotateX: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 18 }}
-          className={`w-full py-2 px-4 rounded-xl font-bold shadow-lg transition-all text-base ${
+          className={`w-full py-1.5 sm:py-2 px-2 sm:px-4 rounded-xl font-bold shadow-lg transition-all text-sm sm:text-base ${
             product.stock === 0 
               ? 'bg-gray-400 cursor-not-allowed text-white' 
               : 'bg-gradient-to-r from-primary-600 to-purple-500 text-white hover:from-purple-500 hover:to-primary-600'

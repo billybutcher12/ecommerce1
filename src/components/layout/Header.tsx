@@ -7,6 +7,7 @@ import { useCart } from '../../hooks/useCart';
 import { useFlashSale } from '../../contexts/FlashSaleContext';
 import Logo from '../ui/Logo';
 import { supabase } from '../../lib/supabase';
+import defaultAvatar from '../../assets/default-avatar.svg';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -24,6 +25,7 @@ const Header = () => {
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const { hasNewFlashSale } = useFlashSale();
+  const [profile, setProfile] = useState<any>(null);
   
   // Change header style on scroll
   useEffect(() => {
@@ -81,6 +83,18 @@ const Header = () => {
     fetchCategories();
   }, []);
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (user && user.id) {
+        const { data } = await supabase.from('users').select('full_name, avatar_url').eq('id', user.id).single();
+        setProfile(data);
+      } else {
+        setProfile(null);
+      }
+    };
+    fetchProfile();
+  }, [user]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setShowSuggestions(false);
@@ -102,16 +116,25 @@ const Header = () => {
       style={{ boxShadow: isScrolled ? '0 8px 32px 0 rgba(31,38,135,0.10)' : undefined }}
     >
       <div className="container mx-auto px-2 sm:px-4">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-2 sm:gap-4">
           {/* Logo */}
-          <Link to="/" className="z-10 flex items-center gap-2">
-            <motion.div whileHover={{ scale: 1.08, rotate: 3 }}>
+          <Link to="/" className="z-10 flex items-center gap-1 sm:gap-2">
+            <motion.div whileHover={{ scale: 1.08, rotate: 3 }} className="w-8 h-8 sm:w-10 sm:h-10">
               <Logo dark={isScrolled} />
             </motion.div>
           </Link>
           
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="md:hidden p-2 rounded-lg hover:bg-white/10 transition-colors"
+            aria-label="Toggle menu"
+          >
+            {isMenuOpen ? <X size={24} className={isScrolled ? 'text-primary-700' : 'text-white'} /> : <Menu size={24} className={isScrolled ? 'text-primary-700' : 'text-white'} />}
+          </button>
+          
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
+          <nav className="hidden md:flex items-center space-x-4 lg:space-x-6">
             <Link
               to="/"
               className={`text-base font-semibold px-3 py-2 rounded-lg transition-all duration-200 ${
@@ -215,9 +238,9 @@ const Header = () => {
           {/* Search Bar Desktop */}
           <form
             onSubmit={handleSearch}
-            className={`hidden md:flex items-center bg-white/90 rounded-full shadow-md px-3 py-1 transition-all duration-300 border-2 ${
+            className={`hidden md:flex items-center bg-white/90 rounded-full shadow-md px-2 sm:px-3 py-1 transition-all duration-300 border-2 ${
               isScrolled ? 'border-primary-200' : 'border-transparent'
-            } focus-within:border-primary-500 w-72 relative`}
+            } focus-within:border-primary-500 w-56 lg:w-72 relative`}
             style={{ boxShadow: '0 2px 12px 0 rgba(31,38,135,0.08)' }}
           >
             <Search className="text-primary-500 mr-2" size={20} />
@@ -288,11 +311,27 @@ const Header = () => {
                 onBlur={() => setTimeout(() => setShowUserDropdown(false), 150)}
                 className={`p-2 rounded-full ${
                   isScrolled ? 'text-primary-700 hover:bg-primary-100' : 'text-white hover:bg-white/10'
-                } transition-colors flex items-center justify-center focus:outline-none`}
+                } transition-colors flex items-center focus:outline-none`}
                 aria-label="Account"
                 tabIndex={0}
               >
-                <User size={20} />
+                {user ? (
+                  (() => {
+                    const avatar = profile?.avatar_url || user.user_metadata?.avatar_url || defaultAvatar;
+                    const name = profile?.full_name || user.user_metadata?.full_name || 'Người dùng';
+                    return <>
+                      <img
+                        src={avatar}
+                        alt={name}
+                        className="w-8 h-8 rounded-full object-cover border-2 border-primary-200 shadow-sm"
+                        onError={e => { e.currentTarget.src = defaultAvatar; }}
+                      />
+                      <span className="hidden md:inline-block ml-2 font-semibold text-primary-700 max-w-[120px] truncate">{name}</span>
+                    </>;
+                  })()
+                ) : (
+                  <User size={20} />
+                )}
               </button>
               <AnimatePresence>
                 {showUserDropdown && !user && (
@@ -377,17 +416,6 @@ const Header = () => {
                 Admin
               </Link>
             )}
-            
-            {/* Mobile Menu Toggle */}
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className={`p-2 rounded-full md:hidden ${
-                isScrolled ? 'text-primary-700 hover:bg-primary-100' : 'text-white hover:bg-white/10'
-              } transition-colors`}
-              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
-            >
-              {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
           </div>
         </div>
         
@@ -426,120 +454,103 @@ const Header = () => {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, x: '100%' }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: '100%' }}
-            className="fixed inset-0 bg-white z-40 md:hidden"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 top-[60px] bg-white z-40 md:hidden"
           >
-            <div className="p-4">
-              <div className="flex justify-between items-center mb-6">
-                <Logo />
-                <button onClick={() => setIsMenuOpen(false)} className="p-2">
-                  <X size={24} />
-                </button>
-              </div>
+            <div className="container mx-auto px-4 py-6">
+              {/* Mobile Search */}
+              <form onSubmit={handleSearch} className="mb-6">
+                <div className="flex items-center bg-gray-100 rounded-full px-4 py-2">
+                  <Search className="text-primary-500 mr-2" size={20} />
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm sản phẩm..."
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+                    className="flex-1 bg-transparent outline-none text-primary-800 placeholder:text-primary-400"
+                    autoComplete="off"
+                  />
+                </div>
+              </form>
+
+              {/* Mobile Navigation */}
               <nav className="space-y-4">
                 <Link
                   to="/"
-                  className="block text-lg font-semibold text-primary-700 hover:text-primary-500"
+                  className="block text-lg font-semibold text-primary-700 py-2"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Trang chủ
                 </Link>
                 <Link
                   to="/flash-sale"
-                  className="block text-lg font-semibold text-red-600 hover:text-red-500 flex items-center gap-2"
+                  className="block text-lg font-semibold text-red-600 py-2 flex items-center gap-2"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <span className="text-xl">🔥</span> Flash Sale
+                  {hasNewFlashSale && (
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                  )}
                 </Link>
-                {/* Dropdown Sản phẩm mobile */}
-                <div>
-                  <Link
-                    to="/products"
-                    className={`text-base font-semibold px-3 py-2 rounded-lg transition-all duration-200 flex items-center gap-1 ${
-                      isScrolled
-                        ? 'text-primary-700 hover:bg-primary-50'
-                        : 'text-white hover:bg-white/10'
-                    }`}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => setShowCategoryDropdown(false)}
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                    className="w-full flex items-center justify-between text-lg font-semibold text-primary-700 py-2"
                   >
                     Sản phẩm
-                    <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                  </Link>
-                  {showCategoryDropdown && (
-                    <div className="pl-4 border-l border-primary-100 mt-1">
-                      {categoriesLoading ? (
-                        <div className="py-2 text-primary-500">Đang tải...</div>
-                      ) : (
-                        categories.length > 0 ? (
-                          categories.map((cat) => (
-                            <Link
-                              key={cat.id}
-                              to={`/products?category=${cat.id}`}
-                              className="block py-2 text-primary-700 hover:text-primary-600 transition-colors"
-                              onClick={() => { setIsMenuOpen(false); setShowCategoryDropdown(false); }}
-                            >
-                              {cat.name}
-                            </Link>
-                          ))
-                        ) : (
-                          <div className="py-2 text-gray-400">Không có danh mục</div>
-                        )
-                      )}
-                    </div>
-                  )}
+                    <svg className={`w-5 h-5 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  <AnimatePresence>
+                    {showCategoryDropdown && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="pl-4 space-y-2">
+                          {categoriesLoading ? (
+                            <div className="text-primary-500">Đang tải...</div>
+                          ) : (
+                            categories.map((cat) => (
+                              <Link
+                                key={cat.id}
+                                to={`/products?category=${cat.id}`}
+                                className="block text-primary-600 py-2"
+                                onClick={() => {
+                                  setShowCategoryDropdown(false);
+                                  setIsMenuOpen(false);
+                                }}
+                              >
+                                {cat.name}
+                              </Link>
+                            ))
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-                {/*<Link
-                  to="/contact"
-                  className="block py-2 text-lg font-medium text-primary-700 hover:text-primary-600 transition-colors"
+                <Link
+                  to="/about"
+                  className="block text-lg font-semibold text-primary-700 py-2"
+                  onClick={() => setIsMenuOpen(false)}
                 >
-                  Liên hệ
-                </Link>*/}
-                {isAdmin && (
-                  <Link
-                    to="/admin"
-                    className="block py-2 text-lg font-medium text-primary-700 hover:text-primary-600 transition-colors"
-                  >
-                    Admin
-                  </Link>
-                )}
+                  Về chúng tôi
+                </Link>
+                <Link
+                  to="/mission"
+                  className="block text-lg font-semibold text-primary-700 py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Sứ mệnh
+                </Link>
               </nav>
-              
-              <div className="py-6 border-t border-primary-100">
-                {user && typeof user === 'object' ? (
-                  <div className="space-y-4">
-                    <Link 
-                      to="/profile" 
-                      className="block py-2 text-primary-700 hover:text-primary-600 transition-colors"
-                    >
-                      My Account
-                    </Link>
-                    <Link 
-                      to="/cart" 
-                      className="block py-2 text-primary-700 hover:text-primary-600 transition-colors"
-                    >
-                      Shopping Cart ({itemCount})
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <Link 
-                      to="/login" 
-                      className="block py-2 text-primary-700 hover:text-primary-600 transition-colors"
-                    >
-                      Log In
-                    </Link>
-                    <Link 
-                      to="/register" 
-                      className="block py-2 text-primary-700 hover:text-primary-600 transition-colors"
-                    >
-                      Register
-                    </Link>
-                  </div>
-                )}
-              </div>
             </div>
           </motion.div>
         )}

@@ -59,7 +59,10 @@ interface Order {
     full_name: string;
   };
   refund_image_url?: string;
-  delivery_status?: 'processing' | 'shipping' | 'delivered' | 'cancelled';
+  delivery_status?: 'pending' | 'processing' | 'shipping' | 'delivered' | 'cancelled';
+  address?: string;
+  note?: string;
+  items?: any[];
 }
 
 interface DashboardStats {
@@ -2150,7 +2153,7 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundAmount, setRefundAmount] = useState<number>(0);
@@ -2162,6 +2165,9 @@ const Orders = () => {
   const [statusOrderId, setStatusOrderId] = useState<string | null>(null);
   const [statusCurrent, setStatusCurrent] = useState<string>('');
   const [statusNext, setStatusNext] = useState<string>('');
+  // State cho modal auto update
+  const [showAutoStatusModal, setShowAutoStatusModal] = useState(false);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -2452,6 +2458,22 @@ const Orders = () => {
     fetchOrders();
   };
 
+  // Hàm mở modal cập nhật trạng thái
+  const handleOpenStatusModal = (order: Order) => {
+    setSelectedOrder(order);
+    setShowStatusModal(true);
+  };
+
+  // Hàm cập nhật trạng thái hàng loạt
+  const handleBulkUpdateDeliveryStatus = async (newStatus: string) => {
+    for (const id of selectedOrderIds) {
+      await supabase.from('orders').update({ delivery_status: newStatus }).eq('id', id);
+    }
+    setShowAutoStatusModal(false);
+    setSelectedOrderIds([]);
+    fetchOrders();
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -2464,10 +2486,10 @@ const Orders = () => {
             Duyệt tự động
           </button>
           <button
-            onClick={autoUpdateDeliveryStatus}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-semibold shadow"
+            className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600"
+            onClick={() => setShowAutoStatusModal(true)}
           >
-            Tự động cập nhật trạng thái giao hàng
+            Tự động cập nhật trạng thái
           </button>
         </div>
       </div>
@@ -2542,7 +2564,7 @@ const Orders = () => {
                     {order.status === 'confirmed' && (['pending','processing','shipping'].includes(order.delivery_status)) && (
                       <button
                         onClick={() => {
-                          setShowStatusModal(true);
+                          handleOpenStatusModal(order);
                           setStatusOrderId(order.id);
                           setStatusCurrent(order.delivery_status);
                           setStatusNext(
@@ -2749,47 +2771,114 @@ const Orders = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Modal chọn trạng thái giao hàng */}
-      {showStatusModal && statusOrderId && statusNext && (
+      {/* Modal cập nhật trạng thái đơn hàng */}
+      {showStatusModal && selectedOrder && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative animate-fadeIn">
-            <button onClick={() => setShowStatusModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-primary-600 text-xl">×</button>
+          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
             <h3 className="text-xl font-bold mb-4 text-primary-700">Cập nhật trạng thái đơn hàng</h3>
-            <div className="mb-4">Trạng thái hiện tại: <span className="font-semibold text-blue-600">{statusCurrent}</span></div>
-            <div className="mb-6">Chọn trạng thái tiếp theo:
-              <div className="mt-2">
-                <button
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 font-semibold"
-                  disabled={actionLoading === statusOrderId + '-update-delivery'}
-                  onClick={async () => {
-                    setActionLoading(statusOrderId + '-update-delivery');
-                    try {
-                      const { error } = await supabase
-                        .from('orders')
-                        .update({ delivery_status: statusNext })
-                        .eq('id', statusOrderId);
-                      if (error) throw error;
-                      toast.success('Cập nhật trạng thái thành công!');
-                      setShowStatusModal(false);
-                      fetchOrders();
-                    } catch (err) {
-                      toast.error('Có lỗi khi cập nhật trạng thái!');
-                    } finally {
-                      setActionLoading(null);
-                    }
-                  }}
-                >
-                  {actionLoading === statusOrderId + '-update-delivery'
-                    ? 'Đang cập nhật...'
-                    : statusNext === 'processing'
-                      ? 'Chuyển sang Đang xử lý'
-                      : statusNext === 'shipping'
-                        ? 'Chuyển sang Đang giao'
-                        : statusNext === 'delivered'
-                          ? 'Chuyển sang Đã giao'
-                          : 'Cập nhật'}
-                </button>
+            <div className="flex flex-col gap-4">
+              <button
+                className="px-4 py-2 rounded bg-blue-500 text-white font-semibold hover:bg-blue-600"
+                onClick={() => handleUpdateDeliveryStatus(selectedOrder.id, "processing")}
+              >
+                Đang xử lý (processing)
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-yellow-500 text-white font-semibold hover:bg-yellow-600"
+                onClick={() => handleUpdateDeliveryStatus(selectedOrder.id, "shipping")}
+              >
+                Đang giao (shipping)
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-green-500 text-white font-semibold hover:bg-green-600"
+                onClick={() => handleUpdateDeliveryStatus(selectedOrder.id, "delivered")}
+              >
+                Đã giao (delivered)
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-red-500 text-white font-semibold hover:bg-red-600"
+                onClick={() => handleUpdateDeliveryStatus(selectedOrder.id, "cancelled")}
+              >
+                Hủy đơn (cancelled)
+              </button>
+            </div>
+            <div className="flex justify-end mt-6">
+              <button
+                className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300"
+                onClick={() => setShowStatusModal(false)}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal chọn trạng thái cho auto update */}
+      {showAutoStatusModal && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl">
+            <h3 className="text-xl font-bold mb-4 text-primary-700">Chọn đơn hàng và trạng thái để cập nhật</h3>
+            <div className="mb-4">
+              <div className="font-semibold mb-2">Các đơn hàng chờ cập nhật:</div>
+              <div className="max-h-60 overflow-y-auto border rounded p-2 bg-gray-50">
+                {orders.filter(o => ['pending', 'processing', 'shipping'].includes(o.delivery_status || '')).length === 0 ? (
+                  <div className="text-gray-500">Không có đơn hàng nào chờ cập nhật.</div>
+                ) : (
+                  orders.filter(o => ['pending', 'processing', 'shipping'].includes(o.delivery_status || '')).map(order => (
+                    <label key={order.id} className="flex items-center gap-2 py-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedOrderIds.includes(order.id)}
+                        onChange={e => {
+                          if (e.target.checked) setSelectedOrderIds(ids => [...ids, order.id]);
+                          else setSelectedOrderIds(ids => ids.filter(id => id !== order.id));
+                        }}
+                      />
+                      <span className="font-medium">#{order.id}</span>
+                      <span className="text-gray-500 text-sm">({order.delivery_status})</span>
+                      <span className="text-gray-500 text-sm ml-2">{order.user?.full_name || order.user_id}</span>
+                    </label>
+                  ))
+                )}
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <button
+                className="px-4 py-2 rounded bg-blue-500 text-white font-semibold hover:bg-blue-600"
+                onClick={() => handleBulkUpdateDeliveryStatus('processing')}
+                disabled={selectedOrderIds.length === 0}
+              >
+                Đang xử lý (processing)
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-yellow-500 text-white font-semibold hover:bg-yellow-600"
+                onClick={() => handleBulkUpdateDeliveryStatus('shipping')}
+                disabled={selectedOrderIds.length === 0}
+              >
+                Đang giao (shipping)
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-green-500 text-white font-semibold hover:bg-green-600"
+                onClick={() => handleBulkUpdateDeliveryStatus('delivered')}
+                disabled={selectedOrderIds.length === 0}
+              >
+                Đã giao (delivered)
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-red-500 text-white font-semibold hover:bg-red-600"
+                onClick={() => handleBulkUpdateDeliveryStatus('cancelled')}
+                disabled={selectedOrderIds.length === 0}
+              >
+                Hủy đơn (cancelled)
+              </button>
+            </div>
+            <div className="flex justify-end mt-6">
+              <button
+                className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300"
+                onClick={() => { setShowAutoStatusModal(false); setSelectedOrderIds([]); }}
+              >
+                Đóng
+              </button>
             </div>
           </div>
         </div>
@@ -4187,7 +4276,7 @@ function EventManager() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl max-h-[80vh] overflow-y-scroll">
             <h3 className="text-xl font-bold mb-6">Tạo sự kiện mới</h3>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
@@ -4863,8 +4952,8 @@ const FlashSaleManager: React.FC = () => {
         </table>
       </div>
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-4xl w-[1100px]">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-4xl w-[1100px] max-h-[80vh] overflow-y-scroll">
             <h3 className="text-xl font-bold mb-4">
               {editingFlashSaleId ? 'Chỉnh sửa Flash Sale' : 'Tạo Flash Sale mới'}
             </h3>

@@ -147,7 +147,7 @@ function ParallaxBanner({ src, alt }: { src: string, alt: string }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   return (
-    <div className="relative w-full h-screen overflow-hidden flex items-center justify-center">
+    <div className="relative w-full h-48 sm:h-[300px] md:h-[400px] lg:h-screen overflow-hidden flex items-center justify-center">
       <img
         ref={bannerRef}
         src={src}
@@ -320,6 +320,8 @@ const FlashSalePage = () => {
     toast.success(`${selectedProduct.name} đã thêm vào giỏ hàng!`);
   };
 
+  const [showFilterModal, setShowFilterModal] = useState(false);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-100 via-white to-purple-200 pt-24 md:pt-20 pb-12">
       {/* Banner fullwidth, responsive */}
@@ -327,8 +329,8 @@ const FlashSalePage = () => {
         {/* Countdown overlay căn giữa banner */}
         {currentFlashSale?.end_time && (
           <div className="absolute top-1/2 left-1/2 z-30 -translate-x-1/2 -translate-y-1/2 flex justify-center w-full pointer-events-none">
-            <div className="bg-black/60 rounded-xl px-8 py-6 flex flex-col items-center shadow-2xl">
-              <span className="text-3xl md:text-5xl font-extrabold text-white mb-2 drop-shadow">FLASH SALE ĐANG DIỄN RA</span>
+            <div className="bg-black/60 rounded-xl px-3 py-3 sm:px-8 sm:py-6 flex flex-col items-center shadow-2xl">
+              <span className="text-lg sm:text-3xl md:text-5xl font-extrabold text-white mb-2 drop-shadow">FLASH SALE ĐANG DIỄN RA</span>
               <CountdownBar endTime={currentFlashSale.end_time} />
             </div>
           </div>
@@ -347,7 +349,7 @@ const FlashSalePage = () => {
       <div className="container mx-auto px-2 sm:px-4 py-4">
         <div className="flex flex-col md:flex-row gap-6">
           {/* Filter bên trái */}
-          <div className="md:w-1/4 w-full bg-white/80 rounded-2xl shadow-lg p-4 border border-purple-100 inline-flex flex-col gap-2">
+          <div className="md:w-1/4 w-full bg-white/80 rounded-2xl shadow-lg p-4 border border-purple-100 inline-flex flex-col gap-2 hidden md:block">
             <div className="text-lg font-bold text-purple-700 mb-4">Bộ lọc sản phẩm</div>
             <button
               className={`w-full mb-2 px-4 py-2 rounded-lg font-semibold border-2 transition ${filter==='top' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-purple-700 border-purple-200 hover:bg-purple-100'}`}
@@ -386,6 +388,66 @@ const FlashSalePage = () => {
               Đặt lại bộ lọc
             </button>
           </div>
+          {/* Nút icon tròn nổi mở bộ lọc trên mobile */}
+          <button
+            className="fixed bottom-4 left-4 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 shadow-xl flex items-center justify-center text-white text-3xl border-2 border-white/80 md:hidden"
+            onClick={() => setShowFilterModal(true)}
+            aria-label="Bộ lọc sản phẩm"
+          >
+            <svg width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/></svg>
+          </button>
+
+          {/* Modal bộ lọc trên mobile */}
+          {showFilterModal && (
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40">
+              <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl p-4 max-h-[90vh] overflow-y-auto animate-fade-in relative">
+                <button
+                  className="absolute top-3 right-3 w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-xl text-gray-600 hover:bg-gray-200"
+                  onClick={() => setShowFilterModal(false)}
+                  aria-label="Đóng bộ lọc"
+                >
+                  ×
+                </button>
+                <div className="text-lg font-bold text-purple-700 mb-4">Bộ lọc sản phẩm</div>
+                <button
+                  className={`w-full mb-2 px-4 py-2 rounded-lg font-semibold border-2 transition ${filter==='top' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-purple-700 border-purple-200 hover:bg-purple-100'}`}
+                  onClick={() => { setFilter('top'); setCurrentPage(1); setShowFilterModal(false); }}
+                >
+                  Top bán chạy
+                </button>
+                <button
+                  className={`w-full mb-2 px-4 py-2 rounded-lg font-semibold border-2 transition ${filter==='low' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-purple-700 border-purple-200 hover:bg-purple-100'}`}
+                  onClick={() => { setFilter('low'); setCurrentPage(1); setShowFilterModal(false); }}
+                >
+                  Bán ít nhất
+                </button>
+                <div className="mt-4">
+                  <label className="block text-sm font-semibold text-purple-700 mb-1">Danh mục đang giảm giá</label>
+                  <select
+                    className="w-full px-3 py-2 rounded-lg border-2 border-purple-200 focus:border-purple-500 focus:outline-none"
+                    value={selectedCategory}
+                    onChange={e => { setSelectedCategory(e.target.value); setFilter('category'); setCurrentPage(1); setShowFilterModal(false); }}
+                  >
+                    <option value="">-- Chọn danh mục --</option>
+                    {validDiscountCategories.length === 0 ? (
+                      <option value="" disabled>Không có danh mục giảm giá</option>
+                    ) : (
+                      validDiscountCategories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                <button
+                  className="w-full mt-6 px-4 py-2 rounded-lg font-semibold border-2 border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 transition"
+                  onClick={() => { setFilter(null); setSelectedCategory(''); setCurrentPage(1); setShowFilterModal(false); }}
+                  disabled={!filter && !selectedCategory}
+                >
+                  Đặt lại bộ lọc
+                </button>
+              </div>
+            </div>
+          )}
           {/* Sản phẩm bên phải */}
           <div className="md:w-3/4 w-full">
             {loading ? (
@@ -399,7 +461,7 @@ const FlashSalePage = () => {
             ) : (
               <>
               <motion.div
-                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6"
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6"
                 initial="hidden"
                 animate="visible"
                 variants={{
