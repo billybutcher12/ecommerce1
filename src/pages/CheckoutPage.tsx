@@ -382,9 +382,69 @@ function CheckoutPage() {
       return;
     }
 
-    if (!selectedAddress) {
-      toast.error('Vui lòng chọn địa chỉ giao hàng');
+    // Kiểm tra và lưu thông tin cá nhân nếu thiếu
+    if (!profile?.full_name || !profile?.email || !profile?.phone) {
+      toast.error('Vui lòng nhập đầy đủ thông tin cá nhân');
       return;
+    }
+    // Nếu profile chưa có id (chưa lưu DB), lưu vào bảng users
+    if (!profile?.id) {
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .insert({
+          id: userIdStr,
+          full_name: profile.full_name,
+          email: profile.email,
+          phone: profile.phone,
+          role: 'customer',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+      if (userError) {
+        toast.error('Không thể lưu thông tin cá nhân');
+        return;
+      }
+      setProfile(userData);
+    } else {
+      // Nếu đã có id, cập nhật thông tin nếu có thay đổi
+      await supabase
+        .from('users')
+        .update({
+          full_name: profile.full_name,
+          email: profile.email,
+          phone: profile.phone,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userIdStr);
+    }
+
+    // Kiểm tra và lưu địa chỉ nếu thiếu
+    if (!selectedAddress?.address_line || !selectedAddress?.city || !selectedAddress?.district || !selectedAddress?.ward) {
+      toast.error('Vui lòng nhập đầy đủ địa chỉ giao hàng');
+      return;
+    }
+    // Nếu địa chỉ chưa có id (chưa lưu DB), lưu vào bảng addresses
+    if (!selectedAddress?.id) {
+      const { data: addressData, error: addressError } = await supabase
+        .from('addresses')
+        .insert({
+          user_id: userIdStr,
+          address_line: selectedAddress.address_line,
+          city: selectedAddress.city,
+          district: selectedAddress.district,
+          ward: selectedAddress.ward,
+          is_default: true,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+      if (addressError) {
+        toast.error('Không thể lưu địa chỉ giao hàng');
+        return;
+      }
+      setSelectedAddress(addressData);
     }
 
     setLoading(true);
@@ -516,7 +576,7 @@ function CheckoutPage() {
     }
   }, [selectedAddress, cities]);
 
-  // Render phần thông tin cá nhân chỉ đọc
+  // Render phần thông tin cá nhân chỉ đọc hoặc cho nhập nếu chưa có
   const renderUserInfo = () => (
     <motion.div
       initial={{ x: -50, opacity: 0 }}
@@ -539,7 +599,7 @@ function CheckoutPage() {
             value={profile?.full_name || ''}
             onChange={e => setProfile({ ...profile, full_name: e.target.value })}
             className="w-full px-4 py-2 rounded-xl border border-gray-200 bg-gray-50"
-            placeholder="Chưa có thông tin"
+            placeholder="Nhập họ tên"
           />
         </div>
         <div>
@@ -549,7 +609,7 @@ function CheckoutPage() {
             value={profile?.email || ''}
             onChange={e => setProfile({ ...profile, email: e.target.value })}
             className="w-full px-4 py-2 rounded-xl border border-gray-200 bg-gray-50"
-            placeholder="Chưa có thông tin"
+            placeholder="Nhập email"
           />
         </div>
         <div>
@@ -559,14 +619,14 @@ function CheckoutPage() {
             value={profile?.phone || ''}
             onChange={e => setProfile({ ...profile, phone: e.target.value })}
             className="w-full px-4 py-2 rounded-xl border border-gray-200 bg-gray-50"
-            placeholder="Chưa có thông tin"
+            placeholder="Nhập số điện thoại"
           />
         </div>
       </div>
     </motion.div>
   );
 
-  // Render phần địa chỉ giao hàng chỉ đọc
+  // Render phần địa chỉ giao hàng cho nhập nếu chưa có
   const renderAddressInfo = () => (
     <motion.div
       initial={{ x: -50, opacity: 0 }}
@@ -586,10 +646,24 @@ function CheckoutPage() {
           <label className="block text-sm font-medium text-gray-700 mb-1">Địa chỉ</label>
           <input
             type="text"
-            value={selectedAddress?.address_line || ''}
-            onChange={e => setSelectedAddress(selectedAddress ? { ...selectedAddress, address_line: e.target.value } : null)}
+            value={selectedAddress?.address_line ?? ''}
+            onChange={e => {
+              if (selectedAddress) {
+                setSelectedAddress({ ...selectedAddress, address_line: e.target.value });
+              } else {
+                setSelectedAddress({
+                  id: '',
+                  address_line: e.target.value,
+                  city: '',
+                  district: '',
+                  ward: '',
+                  user_id: userIdStr,
+                  is_default: true
+                });
+              }
+            }}
             className="w-full px-4 py-2 rounded-xl border border-gray-200 bg-gray-50"
-            placeholder="Chưa có thông tin"
+            placeholder="Nhập địa chỉ cụ thể"
           />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

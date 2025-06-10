@@ -163,28 +163,28 @@ const ProductCard = ({ product, discountedPrice, showAddToCart, className, onAdd
           )}
         </div>
         {/* Giá */}
-        <p className="font-bold text-base sm:text-lg">
+        <p className="font-bold text-base sm:text-lg flex flex-col sm:flex-row items-center sm:items-baseline justify-center text-center break-words leading-tight mb-1">
           {typeof discountedPrice === 'number' && discountedPrice < product.price ? (
             <>
-              <span className="text-purple-700 font-bold mr-2">
+              <span className="text-purple-700 font-bold mr-0 sm:mr-2 block">
                 {discountedPrice.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
               </span>
-              <span className="text-gray-400 line-through mr-2">
+              <span className="text-gray-400 line-through mr-0 sm:mr-2 block">
                 {product.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
               </span>
             </>
           ) : (
             typeof product.discount_price === 'number' && product.discount_price > 0 && product.discount_price < product.price ? (
               <>
-                <span className="text-primary-600 font-bold mr-2">
+                <span className="text-primary-600 font-bold mr-0 sm:mr-2 block">
                   {product.discount_price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
                 </span>
-                <span className="text-gray-400 line-through">
+                <span className="text-gray-400 line-through block">
                   {product.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
                 </span>
               </>
             ) : (
-              product.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })
+              <span className="block">{product.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</span>
             )
           )}
         </p>

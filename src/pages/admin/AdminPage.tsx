@@ -3,7 +3,7 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {  Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { toast } from 'react-hot-toast';
-import { User, Package, Settings as Menu, X, Image as ImageIcon, LayoutDashboard, List, ShoppingCart, Users, Bell, Download, Mail, AlertTriangle, Calendar, LucideIcon } from 'lucide-react';
+import { User, Package, Settings as Menu, X, Image as ImageIcon, LayoutDashboard, List, ShoppingCart, Users, Bell, Download, Mail, AlertTriangle, Calendar, LucideIcon, Gift } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Pagination from '../../components/shared/Pagination';
 import DatePicker from 'react-datepicker';
@@ -257,6 +257,7 @@ const AdminPage = () => {
     { icon: <List />, label: 'Danh mục', path: '/admin/categories' },
     { icon: <ShoppingCart />, label: 'Đơn hàng', path: '/admin/orders' },
     { icon: <Users />, label: 'Khách hàng', path: '/admin/customers' },
+    { icon: <Gift />, label: 'Voucher', path: '/admin/vouchers' },
     { icon: <Calendar />, label: 'Flash Sale', path: '/admin/flashsale' },
     { icon: <ImageIcon />, label: 'Banner', path: '/admin/banners' },
     { icon: <Download />, label: 'Báo cáo', path: '/admin/reports' },
@@ -564,6 +565,7 @@ const AdminPage = () => {
                 <Route path="/categories" element={<Categories search={searchCategories} />} />
                 <Route path="/orders" element={<Orders />} />
                 <Route path="/customers" element={<Customers />} />
+                <Route path="/vouchers" element={<VoucherManager search={searchVouchers} />} />
                 <Route path="/events" element={<EventManager />} />
                 <Route path="/flashsale" element={<FlashSaleManager />} />
                 <Route path="/banners" element={<BannerManager />} />

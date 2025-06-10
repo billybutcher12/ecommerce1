@@ -267,7 +267,7 @@ const HomePage = () => {
     <ParallaxProvider>
       <div className="min-h-screen bg-white text-black relative overflow-x-hidden">
         {/* Hero Section */}
-        <section className="relative min-h-[50vh] sm:min-h-[60vh] md:min-h-screen flex items-center justify-center py-8 sm:py-12 md:py-0">
+        <section className="relative min-h-[50vh] sm:min-h-[60vh] md:min-h-screen flex items-center justify-center py-8 sm:py-12 md:py-0 pt-40">
           {/* Parallax Background Image */}
           <Parallax speed={-30} className="absolute inset-0 z-0">
             <img

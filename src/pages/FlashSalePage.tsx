@@ -323,7 +323,7 @@ const FlashSalePage = () => {
   const [showFilterModal, setShowFilterModal] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-100 via-white to-purple-200 pt-24 md:pt-20 pb-12">
+    <div className="min-h-screen bg-gradient-to-br from-purple-100 via-white to-purple-200 pt-36 md:pt-20 pb-12">
       {/* Banner fullwidth, responsive */}
       <div className="w-full relative mb-10">
         {/* Countdown overlay căn giữa banner */}
@@ -474,7 +474,7 @@ const FlashSalePage = () => {
                   let className = '';
                   let badge = null;
                   if (item.product.stock <= 3) {
-                    className += ' animate-pulse border-red-400';
+                    className += ' animate-pulse';
                     badge = <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded shadow animate-bounce z-10">Sắp hết!</span>;
                   }
                   if (timeLeft && timeLeft.total < 10 * 60 * 1000) {
@@ -482,11 +482,7 @@ const FlashSalePage = () => {
                     badge = <span className="absolute top-2 right-2 bg-pink-500 text-white text-xs font-bold px-2 py-1 rounded shadow animate-pulse z-10">Sắp kết thúc</span>;
                   }
                   return (
-                    <motion.div
-                      key={item.id}
-                      whileHover={{ scale: 1.06 }}
-                      className={"relative bg-white rounded-2xl shadow-lg border-4 border-purple-200 hover:border-purple-400 transition-all duration-200 p-3 flex flex-col items-center " + className}
-                    >
+                    <React.Fragment key={item.id}>
                       {badge}
                       <ProductCard
                         product={{
@@ -514,7 +510,7 @@ const FlashSalePage = () => {
                         className={className}
                         onAddToCartClick={handleAddToCartClick}
                       />
-                    </motion.div>
+                    </React.Fragment>
                   );
                 })}
               </motion.div>

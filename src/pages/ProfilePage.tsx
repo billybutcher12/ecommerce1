@@ -1005,7 +1005,7 @@ export default function ProfilePage() {
   const [showTabDropdown, setShowTabDropdown] = useState(false);
 
   return (
-    <div className="relative min-h-screen pt-32 pb-12 px-2 md:px-0 bg-gray-50 overflow-hidden">
+    <div className="relative min-h-screen pt-40 pb-12 px-2 md:px-0 bg-gray-50 overflow-hidden">
       {/* Hiệu ứng động 3D blob */}
       <motion.div
         className="absolute -top-32 -left-32 w-[420px] h-[420px] bg-gradient-to-br from-primary-400 via-purple-400 to-blue-400 rounded-full blur-3xl opacity-30 z-0 pointer-events-none"

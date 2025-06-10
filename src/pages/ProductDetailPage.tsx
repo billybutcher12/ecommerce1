@@ -460,16 +460,32 @@ const ProductDetailPage = () => {
   }
 
   return (
-    <div className="container mx-auto px-2 md:px-4 py-8 pt-24">
+    <div className="container mx-auto px-2 md:px-4 py-8 pt-20">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16">
           {/* Product Image Section */}
           <motion.div
             whileHover={{ scale: 1.04, rotateY: 8 }}
             transition={{ type: 'spring', stiffness: 200, damping: 18 }}
-            className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-2 sm:p-4 flex items-center justify-center min-h-[320px] sm:min-h-[400px] md:min-h-[500px]"
+            className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-2 sm:p-4 flex items-center justify-center min-h-[320px] sm:min-h-[400px] md:min-h-[500px] relative"
             style={{ perspective: '1200px' }}
           >
+            {/* Badge góc trái trên cùng */}
+            {badge && (
+              <span className={`absolute top-2 left-2 z-20 inline-flex items-center px-3 py-1 rounded-full font-semibold text-sm ${badge.color} sm:hidden`}>{badge.icon}{badge.label}</span>
+            )}
+            {/* Nút wishlist góc phải trên cùng chỉ hiện trên mobile */}
+            <button
+              ref={heartBtnRef}
+              onClick={handleHeartClick}
+              onMouseMove={handleHeartMouseMove}
+              onMouseLeave={handleHeartMouseLeave}
+              style={heartStyle}
+              className="absolute top-2 right-2 z-20 focus:outline-none sm:hidden"
+              aria-label="Yêu thích"
+            >
+              <Heart size={28} className={isWishlisted(product?.id || '') ? 'text-red-500 fill-red-500' : 'text-gray-400'} />
+            </button>
             <div className="aspect-square w-full max-w-[320px] sm:max-w-full rounded-2xl sm:rounded-3xl bg-gray-100 flex items-center justify-center overflow-hidden shadow-xl">
               {loading ? (
                 <div className="animate-pulse w-2/3 h-2/3 bg-gray-300 rounded-2xl" />
@@ -494,19 +510,23 @@ const ProductDetailPage = () => {
             <div>
               <h1 className="text-3xl md:text-4xl font-extrabold text-primary-800 mb-2 drop-shadow-lg flex items-center gap-3">
                 {loading ? 'Đang tải...' : product?.name}
-                <button
-                  ref={heartBtnRef}
-                  onClick={handleHeartClick}
-                  onMouseMove={handleHeartMouseMove}
-                  onMouseLeave={handleHeartMouseLeave}
-                  style={heartStyle}
-                  className="ml-2 focus:outline-none relative"
-                  aria-label="Yêu thích"
-                >
-                  <Heart size={28} className={isWishlisted(product?.id || '') ? 'text-red-500 fill-red-500' : 'text-gray-400'} />
-                </button>
+                {/* Nút wishlist chỉ hiện trên desktop */}
+                <span className="hidden sm:inline-block">
+                  <button
+                    ref={heartBtnRef}
+                    onClick={handleHeartClick}
+                    onMouseMove={handleHeartMouseMove}
+                    onMouseLeave={handleHeartMouseLeave}
+                    style={heartStyle}
+                    className="ml-2 focus:outline-none relative"
+                    aria-label="Yêu thích"
+                  >
+                    <Heart size={28} className={isWishlisted(product?.id || '') ? 'text-red-500 fill-red-500' : 'text-gray-400'} />
+                  </button>
+                </span>
+                {/* Badge chỉ hiện trên desktop */}
                 {badge && (
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full font-semibold text-sm ml-2 ${badge.color}`}>{badge.icon}{badge.label}</span>
+                  <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-full font-semibold text-sm ml-2 {badge.color}">{badge.icon}{badge.label}</span>
                 )}
               </h1>
               <p className="mt-1 text-2xl text-primary-600 font-bold mb-4">
@@ -539,13 +559,16 @@ const ProductDetailPage = () => {
                   )
                 )}
               </p>
-              <div className="flex gap-2 items-center mb-4">
+              {/* Thông tin bán/kho/size/màu chia thành 2 hàng */}
+              <div className="flex flex-wrap gap-2 items-center mb-2">
                 <span className="flex items-center gap-1 px-4 py-1 rounded-full font-semibold text-green-700 bg-green-100/60" style={{ fontSize: 18 }}>
                   <Fire className="w-5 h-5 mr-1 text-green-600" /> Đã bán: {typeof (product as any)?.sold === 'number' ? (product as any).sold : 0}
                 </span>
                 <span className="px-4 py-1 rounded-full font-semibold text-blue-700 bg-blue-100/60" style={{ fontSize: 18 }}>
                   Kho: {typeof product?.stock === 'number' ? product.stock : 0}
                 </span>
+              </div>
+              <div className="flex flex-wrap gap-2 items-center mb-4">
                 {Array.isArray(product?.sizes) && product.sizes.length > 0 && (
                   <span className="px-3 py-1 rounded-full font-semibold bg-gray-100 text-gray-700">Size: {product.sizes.join(', ')}</span>
                 )}

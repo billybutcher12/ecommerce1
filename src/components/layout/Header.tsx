@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, User, Search, Menu, X } from 'lucide-react';
@@ -8,6 +8,7 @@ import { useFlashSale } from '../../contexts/FlashSaleContext';
 import Logo from '../ui/Logo';
 import { supabase } from '../../lib/supabase';
 import defaultAvatar from '../../assets/default-avatar.svg';
+import ReactDOM from 'react-dom';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -26,6 +27,8 @@ const Header = () => {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const { hasNewFlashSale } = useFlashSale();
   const [profile, setProfile] = useState<any>(null);
+  
+  const inputRef = useRef<HTMLInputElement>(null);
   
   // Change header style on scroll
   useEffect(() => {
@@ -103,6 +106,52 @@ const Header = () => {
     }
   };
 
+  // Component render dropdown gợi ý ra ngoài header bằng Portal
+  function SuggestionDropdownPortal({ anchorRef, suggestions, show, onSelect }: { anchorRef: React.RefObject<HTMLInputElement>, suggestions: any[], show: boolean, onSelect: (id: string) => void }) {
+    const [style, setStyle] = useState<any>({});
+    useEffect(() => {
+      if (anchorRef.current && show) {
+        const rect = anchorRef.current.getBoundingClientRect();
+        setStyle({
+          position: 'fixed',
+          left: rect.left,
+          top: rect.bottom + 4,
+          width: rect.width,
+          zIndex: 9999,
+        });
+      }
+    }, [anchorRef, show, suggestions]);
+    if (!show || suggestions.length === 0) return null;
+    return ReactDOM.createPortal(
+      <div style={style} className="bg-white rounded-xl shadow-lg border border-primary-100 max-h-80 overflow-y-auto animate-fade-in">
+        {suggestions.map((p: any) => {
+          const img = Array.isArray(p.image_urls) && p.image_urls.length > 0
+            ? p.image_urls[0]
+            : (p.image_url || 'https://via.placeholder.com/60x60?text=No+Image');
+          return (
+            <Link
+              key={p.id + '-suggestion-portal'}
+              to={`/products/${p.id}`}
+              className="flex items-center gap-3 px-4 py-2 hover:bg-primary-50 transition rounded-lg"
+              onClick={() => onSelect(p.id)}
+            >
+              <img
+                src={img}
+                alt={p.name}
+                className="w-10 h-10 object-cover rounded-lg border"
+              />
+              <div className="flex-1">
+                <div className="font-semibold text-primary-700 line-clamp-1">{p.name}</div>
+                <div className="text-sm text-gray-500">{p.price?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>,
+      document.body
+    );
+  }
+
   return (
     <motion.header
       initial={{ y: -60, opacity: 0 }}
@@ -110,10 +159,10 @@ const Header = () => {
       transition={{ type: 'spring', stiffness: 120, damping: 18 }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-white/90 shadow-lg backdrop-blur-md py-2'
-          : 'bg-gradient-to-r from-primary-600 via-purple-500 to-blue-500 py-4 shadow-md'
+          ? 'bg-white py-2'
+          : 'bg-gradient-to-r from-primary-600 via-purple-500 to-blue-500 py-4'
       }`}
-      style={{ boxShadow: isScrolled ? '0 8px 32px 0 rgba(31,38,135,0.10)' : undefined }}
+      style={{ boxShadow: isScrolled ? undefined : undefined }}
     >
       <div className="container mx-auto px-2 sm:px-4">
         <div className="flex items-center justify-between gap-2 sm:gap-4">
@@ -429,21 +478,28 @@ const Header = () => {
               transition={{ duration: 0.3 }}
               className="mt-4 overflow-hidden md:hidden"
             >
-              <form onSubmit={handleSearch} className="flex items-center bg-white rounded-full shadow px-2 py-2 border-2 border-primary-200 focus-within:border-primary-500 w-full">
-                <Search className="text-primary-500 mr-2" size={20} />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm sản phẩm..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 bg-transparent outline-none text-primary-800 placeholder:text-primary-400"
+              <form onSubmit={handleSearch} className="mb-6 relative">
+                <div className="flex items-center bg-gray-100 rounded-full px-4 py-2">
+                  <Search className="text-primary-500 mr-2" size={20} />
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    placeholder="Tìm kiếm sản phẩm..."
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+                    className="flex-1 bg-transparent outline-none text-primary-800 placeholder:text-primary-400"
+                    autoComplete="off"
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  />
+                </div>
+                {/* Dropdown gợi ý sản phẩm cho search bar slide-down mobile dùng Portal */}
+                <SuggestionDropdownPortal
+                  anchorRef={inputRef}
+                  suggestions={suggestions}
+                  show={showSuggestions}
+                  onSelect={() => { setShowSuggestions(false); setIsSearchOpen(false); }}
                 />
-                <button
-                  type="submit"
-                  className="ml-2 px-3 py-1 rounded-full bg-gradient-to-r from-primary-500 to-purple-500 text-white font-semibold shadow hover:from-purple-500 hover:to-primary-500 transition-all duration-300 hover:scale-105 active:scale-95"
-                >
-                  Tìm
-                </button>
               </form>
             </motion.div>
           )}
@@ -454,15 +510,16 @@ const Header = () => {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 top-[60px] bg-white z-40 md:hidden"
+            initial={{ x: '-100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '-100%' }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-y-0 left-0 z-50 bg-white w-4/5 max-w-xs shadow-xl md:hidden"
+            style={{ boxShadow: '2px 0 24px 0 rgba(80,60,200,0.10)' }}
           >
-            <div className="container mx-auto px-4 py-6">
+            <div className="px-4 py-6">
               {/* Mobile Search */}
-              <form onSubmit={handleSearch} className="mb-6">
+              <form onSubmit={handleSearch} className="mb-6 relative">
                 <div className="flex items-center bg-gray-100 rounded-full px-4 py-2">
                   <Search className="text-primary-500 mr-2" size={20} />
                   <input
@@ -472,8 +529,38 @@ const Header = () => {
                     onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
                     className="flex-1 bg-transparent outline-none text-primary-800 placeholder:text-primary-400"
                     autoComplete="off"
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                   />
                 </div>
+                {/* Dropdown gợi ý sản phẩm trên mobile */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-12 bg-white rounded-xl shadow-lg border border-primary-100 mt-2 z-50 max-h-80 overflow-y-auto animate-fade-in">
+                    {suggestions.map((p) => {
+                      const img = Array.isArray(p.image_urls) && p.image_urls.length > 0
+                        ? p.image_urls[0]
+                        : (p.image_url || 'https://via.placeholder.com/60x60?text=No+Image');
+                      return (
+                        <Link
+                          key={p.id + '-suggestion-mobile'}
+                          to={`/products/${p.id}`}
+                          className="flex items-center gap-3 px-4 py-2 hover:bg-primary-50 transition rounded-lg"
+                          onClick={() => { setShowSuggestions(false); setIsMenuOpen(false); }}
+                        >
+                          <img
+                            src={img}
+                            alt={p.name}
+                            className="w-10 h-10 object-cover rounded-lg border"
+                          />
+                          <div className="flex-1">
+                            <div className="font-semibold text-primary-700 line-clamp-1">{p.name}</div>
+                            <div className="text-sm text-gray-500">{p.price?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </form>
 
               {/* Mobile Navigation */}

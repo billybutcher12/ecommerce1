@@ -15,7 +15,6 @@ import ProfilePage from './pages/ProfilePage';
 import AdminPage from './pages/admin/AdminPage';
 import AdminRoute from './components/auth/AdminRoute';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import ContactPage from './pages/ContactPage';
 import ResetPassword from './components/auth/ResetPassword';
 import UpdatePassword from './components/auth/UpdatePassword';
 import AboutPage from './pages/AboutPage';
@@ -48,7 +47,6 @@ function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-              <Route path="/contact" element={<ContactPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/mission" element={<MissionPage />} />
               <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />

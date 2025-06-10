@@ -538,7 +538,7 @@ const ProductsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20 md:pt-16">
+    <div className="min-h-screen bg-gray-50 pt-40 md:pt-16">
       {/* Hiển thị banner nếu có */}
       {banners.length > 0 && (
         <BannerSlider banners={banners} />

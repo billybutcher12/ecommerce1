@@ -133,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Đăng nhập với Google
   const signInWithProvider = async (provider: 'google') => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -143,7 +143,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         },
       });
+
       if (error) throw error;
+
+      // Lắng nghe sự kiện auth state change để tạo profile cho user mới
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Kiểm tra xem user đã có profile chưa
+          const { data: existingProfile } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          // Nếu chưa có profile, tạo mới
+          if (!existingProfile) {
+            const { error: insertError } = await supabase
+              .from('users')
+              .insert([
+                {
+                  id: session.user.id,
+                  email: session.user.email,
+                  role: 'customer',
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                }
+              ]);
+
+            if (insertError) {
+              console.error('Lỗi khi tạo profile:', insertError);
+            }
+          }
+        }
+      });
+
+      // Hủy subscription sau 5 giây để tránh memory leak
+      setTimeout(() => {
+        subscription.unsubscribe();
+      }, 5000);
+
     } catch (error: any) {
       console.error('Lỗi đăng nhập:', error.message);
       throw error;
