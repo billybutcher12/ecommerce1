@@ -12,6 +12,7 @@ import { useWishlist } from '../hooks/useWishlist';
 import defaultAvatar from '../assets/default-avatar.svg';
 import ProductCard from '../components/products/ProductCard';
 import { useFlashSale } from '../hooks/useFlashSale';
+import ArrowButton from '../components/shared/ArrowButton';
 
 // Nút gradient có hiệu ứng sáng theo chuột
 const ButtonGradientGlow = ({ children, onClick, disabled }: { children: React.ReactNode, onClick?: () => void, disabled?: boolean }) => {
@@ -149,7 +150,7 @@ const Glow3DBox = ({ children, className = '' }: { children: React.ReactNode, cl
 const ProductDetailPage = () => {
   const { id } = useParams();
   const { user } = useAuth();
-  const [product, setProduct] = useState<Database['public']['Tables']['products']['Row'] | null>(null);
+  const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<Database['public']['Tables']['reviews']['Row'][]>([]);
   const [reviewLoading, setReviewLoading] = useState(true);
@@ -177,13 +178,14 @@ const ProductDetailPage = () => {
   const [isBuyNow, setIsBuyNow] = useState(false);
   const [visibleReviews, setVisibleReviews] = useState(5);
   const reviewsPerPage = 5;
+  const [currentImageIdx, setCurrentImageIdx] = useState(0);
 
   useEffect(() => {
     const fetchProduct = async () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('products')
-        .select('*, categories(id, name)')
+        .select('*, categories(id, name), product_images:product_images(id, image_url, is_primary, color)')
         .eq('id', id)
         .single();
       if (!error) {
@@ -281,12 +283,10 @@ const ProductDetailPage = () => {
     }
   }, [product]);
 
-  // Ưu tiên lấy ảnh từ image_url, sau đó image_urls, cuối cùng là ảnh mặc định
-  const imageUrl = product?.image_url
-    ? product.image_url
-    : (product?.image_urls && Array.isArray(product.image_urls) && product.image_urls.length > 0
-    ? product.image_urls[0]
-      : 'https://via.placeholder.com/600x600?text=No+Image');
+  // Tạo mảng images từ product_images
+  const images = product?.product_images && product.product_images.length > 0
+    ? product.product_images.map((img: { image_url: string }) => img.image_url)
+    : [product?.image_url || 'https://via.placeholder.com/600x600?text=No+Image'];
 
   // Badge động
   const getBadge = () => {
@@ -326,8 +326,22 @@ const ProductDetailPage = () => {
     }
   };
 
-  // Sửa lỗi ảnh
- 
+  // Hàm lấy ảnh theo màu (ưu tiên is_primary, nếu không có thì lấy ảnh đầu tiên của màu đó, nếu không có thì fallback ảnh mặc định)
+  const getImageByColor = (color: string): string => {
+    if (product?.product_images && product.product_images.length > 0) {
+      // Lọc ảnh theo màu
+      const imagesOfColor = product.product_images.filter((img: any) => img.color === color);
+      if (imagesOfColor.length > 0) {
+        const primary = imagesOfColor.find((img: any) => img.is_primary);
+        return primary ? primary.image_url : imagesOfColor[0].image_url;
+      }
+      // Nếu không có ảnh theo màu, fallback ảnh chính
+      const primary = product.product_images.find((img: any) => img.is_primary);
+      if (primary) return primary.image_url;
+      return product.product_images[0].image_url;
+    }
+    return product?.image_url || 'https://via.placeholder.com/600x600?text=No+Image';
+  };
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -389,6 +403,8 @@ const ProductDetailPage = () => {
         : (typeof product.discount_price === 'number' && product.discount_price > 0 && product.discount_price < product.price
             ? product.discount_price
             : product.price);
+    // Lấy đúng ảnh theo màu
+    const imageByColor = getImageByColor(selectedColor);
     if (isBuyNow) {
       // Chuyển sang trang thanh toán với đầy đủ thông tin sản phẩm
       setShowBuyNowModal(false);
@@ -397,7 +413,7 @@ const ProductDetailPage = () => {
         id: product.id,
         name: product.name,
         price: finalPrice,
-        image: product.image_url,
+        image: imageByColor,
         quantity: quantity,
         color: selectedColor,
         size: selectedSize,
@@ -408,12 +424,12 @@ const ProductDetailPage = () => {
       window.location.href = `/checkout?product=${encodeURIComponent(JSON.stringify(productData))}`;
       return;
     }
-    // Thêm vào giỏ hàng như cũ
+    // Thêm vào giỏ hàng như cũ, nhưng lấy đúng ảnh theo màu
     addToCart({
       product_id: product.id,
       name: product.name,
       price: finalPrice,
-      image: product.image_url,
+      image: imageByColor,
       quantity,
       color: selectedColor,
       size: selectedSize
@@ -486,21 +502,46 @@ const ProductDetailPage = () => {
             >
               <Heart size={28} className={isWishlisted(product?.id || '') ? 'text-red-500 fill-red-500' : 'text-gray-400'} />
             </button>
-            <div className="aspect-square w-full max-w-[320px] sm:max-w-full rounded-2xl sm:rounded-3xl bg-gray-100 flex items-center justify-center overflow-hidden shadow-xl">
-              {loading ? (
-                <div className="animate-pulse w-2/3 h-2/3 bg-gray-300 rounded-2xl" />
-              ) : (
-                <img
-                  src={imageUrl}
-                  alt={product?.name}
-                  onError={e => {
-                    const target = e.currentTarget;
-                    if (!target.src.includes('placeholder.com')) {
-                      target.src = 'https://via.placeholder.com/600x600?text=No+Image';
-                    }
-                  }}
-                  className="w-full h-full object-cover rounded-2xl sm:rounded-3xl transition-transform duration-500"
-                />
+            <div className="relative w-full max-w-[320px] sm:max-w-full aspect-square mx-auto">
+              <img
+                src={images[currentImageIdx]}
+                alt={product?.name}
+                className="w-full h-full object-cover rounded-2xl sm:rounded-3xl transition-transform duration-500"
+                onError={e => {
+                  const target = e.currentTarget;
+                  if (!target.src.includes('placeholder.com')) {
+                    target.src = 'https://via.placeholder.com/600x600?text=No+Image';
+                  }
+                }}
+              />
+              {/* Nút chuyển ảnh */}
+              {images.length > 1 && (
+                <>
+                  <ArrowButton
+                    direction="left"
+                    onClick={() => setCurrentImageIdx((prev) => (prev - 1 + images.length) % images.length)}
+                    className="absolute top-1/2 left-2 -translate-y-1/2 sm:left-4 z-10"
+                    size={32}
+                  />
+                  <ArrowButton
+                    direction="right"
+                    onClick={() => setCurrentImageIdx((prev) => (prev + 1) % images.length)}
+                    className="absolute top-1/2 right-2 -translate-y-1/2 sm:right-4 z-10"
+                    size={32}
+                  />
+                </>
+              )}
+              {/* Dots indicator */}
+              {images.length > 1 && (
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2">
+                  {images.map((_: string, idx: number) => (
+                    <button
+                      key={idx}
+                      className={`w-2 h-2 rounded-full ${currentImageIdx === idx ? 'bg-primary-600' : 'bg-gray-300'}`}
+                      onClick={() => setCurrentImageIdx(idx)}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           </motion.div>
@@ -574,7 +615,7 @@ const ProductDetailPage = () => {
                 )}
                 {Array.isArray(product?.colors) && product.colors.length > 0 && (
                   <span className="flex items-center gap-1">
-                    {product.colors.map((color, idx) => (
+                    {product.colors.map((color: string, idx: number) => (
                       <span key={color + idx} className="px-3 py-1 rounded-full text-xs font-semibold border border-gray-300 bg-white text-gray-700 mr-1">
                         {color}
                       </span>
@@ -618,7 +659,7 @@ const ProductDetailPage = () => {
                         <div className="flex items-center gap-2">
                           <span className="text-gray-600 font-medium">Màu sắc:</span>
                           <div className="flex flex-wrap gap-2">
-                            {product.colors.map((color, idx) => (
+                            {product.colors.map((color: string, idx: number) => (
                               <span key={idx} className="px-3 py-1 rounded-full text-sm font-medium bg-primary-50 text-primary-700 border border-primary-100">
                                 {color}
                               </span>
@@ -630,7 +671,7 @@ const ProductDetailPage = () => {
                         <div className="flex items-center gap-2">
                           <span className="text-gray-600 font-medium">Kích thước:</span>
                           <div className="flex flex-wrap gap-2">
-                            {product.sizes.map((size, idx) => (
+                            {product.sizes.map((size: string, idx: number) => (
                               <span key={idx} className="px-3 py-1 rounded-full text-sm font-medium bg-primary-50 text-primary-700 border border-primary-100">
                                 {size}
                               </span>
@@ -875,30 +916,29 @@ const ProductDetailPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4"
+              className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4"
             >
-              <Glow3DBox className="bg-white rounded-3xl shadow-2xl p-10 w-full max-w-md flex flex-col items-center justify-center gap-6 relative">
+              <Glow3DBox className="bg-white rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-md max-h-[90vh] overflow-y-auto flex flex-col items-center justify-center gap-4 sm:gap-6 p-4 sm:p-10 relative">
                 {/* Ảnh sản phẩm */}
                 <Glow3DBox className="flex flex-col items-center mb-2 cursor-pointer" >
                   <img
-                    src={product.image_url || (Array.isArray(product.image_urls) && product.image_urls.length > 0 ? product.image_urls[0] : 'https://via.placeholder.com/300x300?text=No+Image')}
+                    src={getImageByColor(selectedColor) || product.image_url || (Array.isArray(product.image_urls) && product.image_urls.length > 0 ? product.image_urls[0] : 'https://via.placeholder.com/300x300?text=No+Image')}
                     alt={product.name}
-                    className="w-36 h-36 object-cover rounded-2xl border-2 border-primary-100 shadow-lg mb-2 transition-transform duration-500"
+                    className="w-28 h-28 sm:w-36 sm:h-36 object-cover rounded-2xl border-2 border-primary-100 shadow-lg mb-2 transition-transform duration-500"
                     onClick={() => setShowImageLightbox(true)}
                     style={{ cursor: 'zoom-in' }}
                   />
-                  <span className="text-gray-500 text-xs">Ảnh sản phẩm</span>
                 </Glow3DBox>
-                <h3 className="text-2xl font-extrabold text-primary-700 mb-4 text-center">Chọn màu và size</h3>
+                <h3 className="text-lg sm:text-2xl font-extrabold text-primary-700 mb-2 sm:mb-4 text-center">Chọn màu và size</h3>
                 {Array.isArray(product?.colors) && product.colors.length > 0 && (
                   <div className="mb-4 w-full flex flex-col items-center">
                     <label className="block text-base font-semibold text-gray-700 mb-2">Màu sắc</label>
                     <div className="flex gap-3 flex-wrap justify-center">
-                      {product.colors.map((color: string) => (
+                      {product.colors.map((color: string, idx: number) => (
                         <button
                           key={color}
                           type="button"
-                          className={`px-5 py-2 rounded-full border font-semibold shadow transition-all duration-200 text-base focus:outline-none ${selectedColor === color ? 'bg-gradient-to-r from-primary-500 to-purple-500 text-white border-primary-600 scale-105 shadow-lg' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-primary-50 hover:text-primary-700'}`}
+                          className={`px-4 sm:px-5 py-2 rounded-full border font-semibold shadow transition-all duration-200 text-sm sm:text-base focus:outline-none ${selectedColor === color ? 'bg-gradient-to-r from-primary-500 to-purple-500 text-white border-primary-600 scale-105 shadow-lg' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-primary-50 hover:text-primary-700'}`}
                           onClick={() => setSelectedColor(color)}
                         >
                           {color}
@@ -910,22 +950,24 @@ const ProductDetailPage = () => {
                 {Array.isArray(product?.sizes) && product.sizes.length > 0 && (
                   <div className="mb-4 w-full flex flex-col items-center">
                     <label className="block text-base font-semibold text-gray-700 mb-2">Kích cỡ</label>
-                    <div className="flex gap-3 flex-wrap justify-center">
-                      {product.sizes.map((size: string) => (
-                        <button
-                          key={size}
-                          type="button"
-                          className={`px-5 py-2 rounded-full border font-semibold shadow transition-all duration-200 text-base focus:outline-none ${selectedSize === size ? 'bg-gradient-to-r from-primary-500 to-purple-500 text-white border-primary-600 scale-105 shadow-lg' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-primary-50 hover:text-primary-700'}`}
-                          onClick={() => setSelectedSize(size)}
-                        >
-                          {size}
-                        </button>
-                      ))}
+                    <div className="w-full overflow-x-auto pb-2 -mx-4 px-4">
+                      <div className="flex gap-3 min-w-max">
+                        {product.sizes.map((size: string, idx: number) => (
+                          <button
+                            key={size}
+                            type="button"
+                            className={`px-5 py-2 rounded-full border font-semibold shadow transition-all duration-200 text-base focus:outline-none whitespace-nowrap ${selectedSize === size ? 'bg-gradient-to-r from-primary-500 to-purple-500 text-white border-primary-600 scale-105 shadow-lg' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-primary-50 hover:text-primary-700'}`}
+                            onClick={() => setSelectedSize(size)}
+                          >
+                            {size}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
                 {/* Số lượng và tồn kho */}
-                <div className="mb-4 flex flex-col md:flex-row items-center gap-6 w-full justify-center">
+                <div className="mb-4 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 w-full justify-center">
                   <div className="flex flex-col items-center">
                     <label className="block text-base font-semibold text-gray-700 mb-2">Số lượng</label>
                     <QuantityBox3D>
@@ -939,12 +981,12 @@ const ProductDetailPage = () => {
                     <div className="text-primary-600 font-bold text-xl">{product.stock}</div>
                   </div>
                 </div>
-                <div className="flex justify-end gap-3 mt-6 w-full">
+                <div className="flex justify-end gap-3 mt-4 sm:mt-6 w-full">
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setShowBuyNowModal(false)}
-                    className="px-6 py-2 text-base font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 shadow"
+                    className="px-4 sm:px-6 py-2 text-sm sm:text-base font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 shadow"
                   >
                     Hủy
                   </motion.button>
@@ -952,7 +994,7 @@ const ProductDetailPage = () => {
                     whileHover={{ scale: 1.07, rotateY: 5 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={handleConfirmBuyNow}
-                    className="px-6 py-2 text-base font-semibold text-white bg-gradient-to-r from-primary-600 to-purple-500 rounded-xl shadow hover:from-purple-500 hover:to-primary-600 transition-all"
+                    className="px-4 sm:px-6 py-2 text-sm sm:text-base font-semibold text-white bg-gradient-to-r from-primary-600 to-purple-500 rounded-xl shadow hover:from-purple-500 hover:to-primary-600 transition-all"
                   >
                     Xác nhận
                   </motion.button>

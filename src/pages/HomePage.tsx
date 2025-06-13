@@ -14,12 +14,16 @@ import { Glow3DBox, QuantityBox3D, ButtonGradientGlow } from '../components/prod
 import { useCart } from '../hooks/useCart';
 import { toast } from 'react-toastify';
 import React, { useRef } from 'react';
+import ArrowButton from '../components/shared/ArrowButton';
 
 type Category = Database['public']['Tables']['categories']['Row'];
 
 type Product = Database['public']['Tables']['products']['Row'] & {
   sold?: number;
   discount_price?: number;
+  product_images?: { id: string; image_url: string; is_primary: boolean; color?: string }[];
+  sizes?: string[];
+  colors?: string[];
 };
 
 interface Comment {
@@ -111,6 +115,12 @@ function normalizeProduct(product: any) {
     washing_instruction: product.washing_instruction || '',
     season: product.season || '',
     sold: product.sold,
+    product_images: product.product_images?.map((img: any) => ({
+      id: img.id,
+      image_url: img.image_url,
+      is_primary: img.is_primary,
+      color: img.color
+    })) || [],
   };
 }
 
@@ -168,6 +178,30 @@ function SlickArrow(props: any) {
   );
 }
 
+// Helper to ensure all required Product fields
+function ensureFullProductFields(product: any) {
+  return {
+    id: product.id,
+    created_at: product.created_at || '',
+    name: product.name,
+    description: product.description || '',
+    price: product.price,
+    category_id: product.category_id || '',
+    image_urls: product.image_urls || (product.image_url ? [product.image_url] : []),
+    image_url: product.image_url || '',
+    sizes: product.sizes || [],
+    colors: product.colors || [],
+    stock: product.stock,
+    is_featured: product.is_featured ?? false,
+    discount_price: product.discount_price || 0,
+    material: product.material || '',
+    washing_instruction: product.washing_instruction || '',
+    season: product.season || '',
+    sold: product.sold,
+    product_images: product.product_images || [],
+  };
+}
+
 const HomePage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,6 +213,7 @@ const HomePage = () => {
   const [selectedColor, setSelectedColor] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [modalImage, setModalImage] = useState<string>('');
 
   // Flash Sale Section
   const { items: flashSaleItems, loading: flashSaleLoading, isFlashSaleActive, getTimeLeft, calculateDiscountedPrice } = useFlashSale();
@@ -191,10 +226,9 @@ const HomePage = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('products')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-      if (!error) setProducts(data || []);
+        .select('*, product_images:product_images(id, image_url, is_primary, color)')
+        .order('created_at', { ascending: false });
+      setProducts(data || []);
       setLoading(false);
     };
     fetchProducts();
@@ -217,20 +251,74 @@ const HomePage = () => {
   const handleAddToCartClick = async (product: any, discountedPrice?: number) => {
     let sizes = product.sizes;
     let colors = product.colors;
+    let product_images = product.product_images;
+    
     // Nếu thiếu, fetch lại từ bảng products
-    if (!sizes || !colors || sizes.length === 0 || colors.length === 0) {
-      const { data } = await supabase.from('products').select('sizes,colors').eq('id', product.id).single();
+    if (!sizes || !colors || sizes.length === 0 || colors.length === 0 || !product_images) {
+      const { data } = await supabase
+        .from('products')
+        .select('sizes, colors, product_images(id, image_url, is_primary, color)')
+        .eq('id', product.id)
+        .single();
+      
       if (data) {
         sizes = typeof data.sizes === 'string' ? JSON.parse(data.sizes) : (data.sizes || []);
         colors = typeof data.colors === 'string' ? JSON.parse(data.colors) : (data.colors || []);
+        product_images = data.product_images || [];
       }
     }
-    setSelectedProduct({ ...product, sizes, colors });
+
+    // Tự chọn màu và size mặc định
+    const defaultColor = colors && colors.length > 0 ? colors[0] : '';
+    const defaultSize = sizes && sizes.length > 0 ? sizes[0] : '';
+
+    setSelectedProduct({ 
+      ...product, 
+      sizes, 
+      colors, 
+      product_images 
+    });
     setSelectedDiscountedPrice(discountedPrice);
-    setShowBuyNowModal(true);
-    setSelectedColor('');
-    setSelectedSize('');
+    setSelectedColor(defaultColor);
+    setSelectedSize(defaultSize);
     setQuantity(1);
+    setShowBuyNowModal(true);
+  };
+
+  // Sửa hàm getImageByColor
+  const getImageByColor = (color: string): string => {
+    if (!selectedProduct) return 'https://via.placeholder.com/600x600?text=No+Image';
+    
+    // Nếu không có màu được chọn, trả về ảnh mặc định
+    if (!color) {
+      const primaryImage = selectedProduct.product_images?.find((img: { is_primary: boolean; image_url: string }) => img.is_primary);
+      return primaryImage?.image_url || selectedProduct.image_url || 'https://via.placeholder.com/600x600?text=No+Image';
+    }
+
+    // Tìm ảnh theo màu đã chọn
+    if (selectedProduct.product_images && selectedProduct.product_images.length > 0) {
+      // Tìm ảnh chính của màu đã chọn
+      const primaryImageOfColor = selectedProduct.product_images.find(
+        (img: { color: string; is_primary: boolean; image_url: string }) => img.color === color && img.is_primary
+      );
+      
+      if (primaryImageOfColor) {
+        return primaryImageOfColor.image_url;
+      }
+
+      // Nếu không có ảnh chính, lấy ảnh đầu tiên của màu đó
+      const firstImageOfColor = selectedProduct.product_images.find(
+        (img: { color: string; image_url: string }) => img.color === color
+      );
+      
+      if (firstImageOfColor) {
+        return firstImageOfColor.image_url;
+      }
+    }
+
+    // Nếu không tìm thấy ảnh theo màu, trả về ảnh mặc định
+    const primaryImage = selectedProduct.product_images?.find((img: { is_primary: boolean; image_url: string }) => img.is_primary);
+    return primaryImage?.image_url || selectedProduct.image_url || 'https://via.placeholder.com/600x600?text=No+Image';
   };
 
   // Xác nhận mua
@@ -245,16 +333,30 @@ const HomePage = () => {
       toast.error('Vượt quá số lượng tồn kho!');
       return;
     }
+
+    // Kiểm tra đã chọn màu và size chưa
+    if (!selectedColor) {
+      toast.error('Vui lòng chọn màu sắc');
+      return;
+    }
+    if (!selectedSize) {
+      toast.error('Vui lòng chọn kích thước');
+      return;
+    }
+
+    // Lấy đúng ảnh theo màu đã chọn
+    const imageByColor = getImageByColor(selectedColor);
     const finalPrice = typeof selectedDiscountedPrice === 'number' && selectedDiscountedPrice < selectedProduct.price
       ? selectedDiscountedPrice
       : (typeof selectedProduct.discount_price === 'number' && selectedProduct.discount_price > 0 && selectedProduct.discount_price < selectedProduct.price
           ? selectedProduct.discount_price
           : selectedProduct.price);
+
     addToCart({
       product_id: selectedProduct.id,
       name: selectedProduct.name,
       price: finalPrice,
-      image: Array.isArray(selectedProduct.image_urls) && selectedProduct.image_urls.length > 0 ? selectedProduct.image_urls[0] : selectedProduct.image_url,
+      image: imageByColor,
       quantity,
       color: selectedColor,
       size: selectedSize
@@ -334,51 +436,54 @@ const HomePage = () => {
         {activeFlashSaleItems.length > 0 && (
           <section className="relative py-10 md:py-16 bg-gradient-to-r from-purple-50 via-white to-purple-100 border-b-2 border-purple-100 mb-8">
             <div className="container mx-auto px-4">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                <div className="flex items-center gap-4">
-                  <span className="text-4xl md:text-5xl font-extrabold text-purple-600 tracking-tight flex items-center">
-                    <span className="mr-2">⚡</span>FLASH SALE
-                  </span>
-                  {currentFlashSale?.end_time && <CountdownBar endTime={currentFlashSale.end_time} />}
+              <div className="max-w-6xl mx-auto px-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                  <div className="flex items-center gap-4">
+                    <span className="text-4xl md:text-5xl font-extrabold text-purple-600 tracking-tight flex items-center">
+                      <span className="mr-2">⚡</span>FLASH SALE
+                    </span>
+                    {currentFlashSale?.end_time && <CountdownBar endTime={currentFlashSale.end_time} />}
+                  </div>
+                  {/* <Link to="/flash-sale" className="text-purple-600 font-bold hover:underline text-lg md:text-xl transition-transform hover:scale-110">Xem tất cả &gt;</Link> */}
                 </div>
-                <Link to="/flash-sale" className="text-purple-600 font-bold hover:underline text-lg md:text-xl transition-transform hover:scale-110">Xem tất cả &gt;</Link>
+                {flashSaleLoading ? (
+                  <div className="text-center text-purple-400 py-10">Đang tải Flash Sale...</div>
+                ) : (
+                  <Slider
+                    dots={false}
+                    infinite={activeFlashSaleItems.length > 4}
+                    speed={500}
+                    slidesToShow={4}
+                    slidesToScroll={1}
+                    arrows={true}
+                    nextArrow={<ArrowButton direction="right" className="hidden sm:flex z-50" size={44} />}
+                    prevArrow={<ArrowButton direction="left" className="hidden sm:flex z-50" size={44} />}
+                    swipeToSlide={true}
+                    touchThreshold={12}
+                    cssEase="ease-in-out"
+                    className="pl-8 pr-8"
+                    responsive={[
+                      { breakpoint: 1024, settings: { slidesToShow: 3, infinite: activeFlashSaleItems.length > 3, arrows: true } },
+                      { breakpoint: 768, settings: { slidesToShow: 2, infinite: activeFlashSaleItems.length > 2, arrows: true } },
+                      { breakpoint: 640, settings: { slidesToShow: 2, infinite: activeFlashSaleItems.length > 2, arrows: false } },
+                    ]}
+                  >
+                    {activeFlashSaleItems.map(item => {
+                      const fullProduct = products.find(p => p.id === item.product.id) || item.product;
+                      return (
+                        <div key={item.id} className="px-1 sm:px-2">
+                          <ProductCard
+                            product={ensureFullProductFields(fullProduct)}
+                            discountedPrice={calculateDiscountedPrice(item)}
+                            showAddToCart={true}
+                            onAddToCartClick={handleAddToCartClick}
+                          />
+                        </div>
+                      );
+                    })}
+                  </Slider>
+                )}
               </div>
-              {flashSaleLoading ? (
-                <div className="text-center text-purple-400 py-10">Đang tải Flash Sale...</div>
-              ) : (
-                <Slider
-                  dots={false}
-                  infinite={activeFlashSaleItems.length > 4}
-                  speed={500}
-                  slidesToShow={4}
-                  slidesToScroll={1}
-                  arrows={true}
-                  nextArrow={<SlickArrow direction="next" className="hidden sm:flex" />}
-                  prevArrow={<SlickArrow direction="prev" className="hidden sm:flex" />}
-                  swipeToSlide={true}
-                  touchThreshold={12}
-                  cssEase="ease-in-out"
-                  responsive={[
-                    { breakpoint: 1024, settings: { slidesToShow: 3, infinite: activeFlashSaleItems.length > 3, arrows: true } },
-                    { breakpoint: 768, settings: { slidesToShow: 2, infinite: activeFlashSaleItems.length > 2, arrows: true } },
-                    { breakpoint: 640, settings: { slidesToShow: 2, infinite: activeFlashSaleItems.length > 2, arrows: false } },
-                  ]}
-                >
-                  {activeFlashSaleItems.map(item => (
-                    <div key={item.id} className="px-1 sm:px-2">
-                      <ProductCard
-                        product={{
-                          ...normalizeProduct(item.product),
-                          flashsale: item.flashsale,
-                        }}
-                        discountedPrice={calculateDiscountedPrice(item)}
-                        showAddToCart={true}
-                        onAddToCartClick={handleAddToCartClick}
-                      />
-                    </div>
-                  ))}
-                </Slider>
-              )}
             </div>
             {/* Modal chọn màu/size */}
             <AnimatePresence>
@@ -393,9 +498,9 @@ const HomePage = () => {
                   <Glow3DBox className="bg-white rounded-2xl shadow-2xl w-full max-w-xs md:max-w-md p-4 md:p-8 flex flex-col items-center relative animate-fadeIn">
                     <Glow3DBox className="flex flex-col items-center mb-2 cursor-pointer" >
                       <img
-                        src={Array.isArray(selectedProduct.image_urls) && selectedProduct.image_urls.length > 0 ? selectedProduct.image_urls[0] : selectedProduct.image_url}
+                        src={getImageByColor(selectedColor)}
                         alt={selectedProduct.name}
-                        className="w-24 h-24 md:w-32 md:h-32 object-cover rounded-2xl border-2 border-primary-100 shadow-lg mb-2"
+                        className="w-24 h-24 md:w-32 md:h-32 object-cover rounded-2xl border-2 border-primary-100 shadow-lg mb-2 transition-transform duration-500"
                       />
                       <span className="text-gray-500 text-xs">Ảnh sản phẩm</span>
                     </Glow3DBox>
@@ -554,14 +659,12 @@ const HomePage = () => {
                   return [...products].sort((a, b) => (b.sold || 0) - (a.sold || 0)).slice(0, 8);
                 }
                 if (filter === 'discount') {
-                  // Lấy sản phẩm flash sale trước
-                  const flashSaleProducts = activeFlashSaleItems.map(item => normalizeProduct(item.product));
-                  // Lấy sản phẩm giảm giá thông thường
+                  // Lấy sản phẩm flash sale trước (object gốc, có đủ product_images)
+                  const flashSaleProducts = activeFlashSaleItems.map(item => item.product);
+                  // Lấy sản phẩm giảm giá thông thường (object gốc)
                   const regularDiscountProducts = products
                     .filter(p => typeof p.discount_price === 'number' && p.discount_price < p.price)
-                    .filter(p => !flashSaleProducts.some(fp => fp.id === p.id)); // Loại bỏ sản phẩm đã có trong flash sale
-                  
-                  // Kết hợp và giới hạn số lượng
+                    .filter(p => !flashSaleProducts.some(fp => fp.id === p.id));
                   return [...flashSaleProducts, ...regularDiscountProducts].slice(0, 8);
                 }
                 return products.slice(0, 8);
@@ -596,35 +699,39 @@ const HomePage = () => {
                       slidesToShow={4}
                       slidesToScroll={1}
                       arrows={true}
-                      nextArrow={<SlickArrow direction="next" className="hidden sm:flex" />}
-                      prevArrow={<SlickArrow direction="prev" className="hidden sm:flex" />}
+                      nextArrow={<ArrowButton direction="right" className="hidden sm:flex z-50" size={44} />}
+                      prevArrow={<ArrowButton direction="left" className="hidden sm:flex z-50" size={44} />}
                       swipeToSlide={true}
                       touchThreshold={12}
                       cssEase="ease-in-out"
+                      className="pl-8 pr-8"
                       responsive={[
                         { breakpoint: 1024, settings: { slidesToShow: 3, infinite: filteredProducts.length > 3, arrows: true } },
                         { breakpoint: 768, settings: { slidesToShow: 2, infinite: filteredProducts.length > 2, arrows: true } },
                         { breakpoint: 640, settings: { slidesToShow: 2, infinite: filteredProducts.length > 2, arrows: false } },
                       ]}
                     >
-                      {filteredProducts.map((item) => {
-                        // Kiểm tra nếu là sản phẩm flash sale
-                        const flashSaleItem = activeFlashSaleItems.find(f => f.product.id === item.id);
+                      {filteredProducts.map((prodRaw) => {
+                        const flashSaleItem = activeFlashSaleItems.find(f => f.product.id === prodRaw.id);
                         if (flashSaleItem) {
                           return (
-                            <div key={item.id} className="px-1 sm:px-2">
-                              <ProductCard 
-                                product={{ ...normalizeProduct(flashSaleItem.product), flashsale: flashSaleItem.flashsale }}
+                            <div key={flashSaleItem.product.id} className="px-1 sm:px-2">
+                              <ProductCard
+                                product={ensureFullProductFields(flashSaleItem.product)}
                                 discountedPrice={calculateDiscountedPrice(flashSaleItem)}
                                 showAddToCart
+                                onAddToCartClick={handleAddToCartClick}
                               />
                             </div>
                           );
                         }
-                        // Sản phẩm không flash sale
                         return (
-                          <div key={item.id} className="px-1 sm:px-2">
-                            <ProductCard product={item} showAddToCart />
+                          <div key={prodRaw.id} className="px-1 sm:px-2">
+                            <ProductCard
+                              product={ensureFullProductFields(prodRaw)}
+                              showAddToCart
+                              onAddToCartClick={handleAddToCartClick}
+                            />
                           </div>
                         );
                       })}

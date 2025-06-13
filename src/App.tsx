@@ -19,7 +19,6 @@ import ResetPassword from './components/auth/ResetPassword';
 import UpdatePassword from './components/auth/UpdatePassword';
 import AboutPage from './pages/AboutPage';
 import MissionPage from './pages/MissionPage';
-import FlashSalePage from './pages/FlashSalePage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Bubble } from "@typebot.io/react";
@@ -52,7 +51,6 @@ function App() {
               <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/update-password" element={<UpdatePassword />} />
-              <Route path="/flash-sale" element={<FlashSalePage />} />
             </Routes>
           </main>
           <Footer />

@@ -173,15 +173,6 @@ const Header = () => {
             </motion.div>
           </Link>
           
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2 rounded-lg hover:bg-white/10 transition-colors"
-            aria-label="Toggle menu"
-          >
-            {isMenuOpen ? <X size={24} className={isScrolled ? 'text-primary-700' : 'text-white'} /> : <Menu size={24} className={isScrolled ? 'text-primary-700' : 'text-white'} />}
-          </button>
-          
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-4 lg:space-x-6">
             <Link
@@ -193,21 +184,6 @@ const Header = () => {
               }`}
             >
               Trang chủ
-            </Link>
-            {/* Flash Sale */}
-            <Link
-              to="/flash-sale"
-              className={`text-base font-semibold px-3 py-2 rounded-lg transition-all duration-200 flex items-center gap-1 relative ${
-                isScrolled
-                  ? 'text-red-600 hover:bg-red-50'
-                  : 'text-white hover:bg-white/10'
-              }`}
-              style={{ fontWeight: 700 }}
-            >
-              <span className="text-lg">🔥</span> Flash Sale
-              {hasNewFlashSale && (
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
-              )}
             </Link>
             {/* Dropdown Sản phẩm */}
             <div className="relative group" onMouseEnter={() => setShowCategoryDropdown(true)} onMouseLeave={() => setShowCategoryDropdown(false)}>
@@ -452,6 +428,15 @@ const Header = () => {
               )}
             </Link>
             
+            {/* Mobile Menu Button - moved here */}
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="md:hidden p-2 rounded-lg hover:bg-white/10 transition-colors"
+              aria-label="Toggle menu"
+            >
+              {isMenuOpen ? <X size={24} className={isScrolled ? 'text-primary-700' : 'text-white'} /> : <Menu size={24} className={isScrolled ? 'text-primary-700' : 'text-white'} />}
+            </button>
+            
             {/* Admin Dashboard Link */}
             {isAdmin && (
               <Link
@@ -510,11 +495,11 @@ const Header = () => {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
-            initial={{ x: '-100%' }}
+            initial={{ x: '100%' }}
             animate={{ x: 0 }}
-            exit={{ x: '-100%' }}
+            exit={{ x: '100%' }}
             transition={{ duration: 0.25 }}
-            className="fixed inset-y-0 left-0 z-50 bg-white w-4/5 max-w-xs shadow-xl md:hidden"
+            className="fixed inset-y-0 right-0 z-50 bg-white w-4/5 max-w-xs shadow-xl md:hidden"
             style={{ boxShadow: '2px 0 24px 0 rgba(80,60,200,0.10)' }}
           >
             <div className="px-4 py-6">
@@ -572,25 +557,17 @@ const Header = () => {
                 >
                   Trang chủ
                 </Link>
-                <Link
-                  to="/flash-sale"
-                  className="block text-lg font-semibold text-red-600 py-2 flex items-center gap-2"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <span className="text-xl">🔥</span> Flash Sale
-                  {hasNewFlashSale && (
-                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                  )}
-                </Link>
                 <div className="space-y-2">
                   <button
                     onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
                     className="w-full flex items-center justify-between text-lg font-semibold text-primary-700 py-2"
                   >
-                    Sản phẩm
-                    <svg className={`w-5 h-5 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <span>Sản phẩm</span>
+                    <span className="ml-2 flex-shrink-0">
+                      <svg className={`w-5 h-5 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </span>
                   </button>
                   <AnimatePresence>
                     {showCategoryDropdown && (

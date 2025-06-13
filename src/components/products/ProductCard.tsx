@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, ShoppingBag, Star, ShoppingCart } from 'lucide-react';
@@ -13,6 +13,7 @@ import React from 'react';
 type Product = Database['public']['Tables']['products']['Row'] & {
   sold?: number;
   discount_price?: number;
+  product_images?: { id: string; image_url: string; is_primary: boolean; color?: string }[];
   flashsale?: {
     id: string;
     discount_type: 'percent' | 'fixed';
@@ -32,9 +33,10 @@ interface ProductCardProps {
   showAddToCart?: boolean;
   className?: string;
   onAddToCartClick?: (product: Product, discountedPrice?: number) => void;
+  images?: string[];
 }
 
-const ProductCard = ({ product, discountedPrice, showAddToCart, className, onAddToCartClick }: ProductCardProps) => {
+const ProductCard = ({ product, discountedPrice, showAddToCart, className, onAddToCartClick, images }: ProductCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const { addToCart } = useCart();
   const { user } = useAuth();
@@ -43,12 +45,22 @@ const ProductCard = ({ product, discountedPrice, showAddToCart, className, onAdd
   const { isWishlisted, addToWishlist, removeFromWishlist } = useWishlist();
   const [heartStyle, setHeartStyle] = useState<any>({});
   const heartBtnRef = useRef<HTMLButtonElement>(null);
-  
-  // Lấy ảnh sản phẩm: ưu tiên image_urls[0], nếu không có thì lấy image_url, nếu vẫn không có thì dùng placeholder
-  const imageUrl = Array.isArray(product.image_urls) && product.image_urls.length > 0
-    ? product.image_urls[0]
-    : (product.image_url || 'https://via.placeholder.com/400x600?text=No+Image');
+  const [imgIndex, setImgIndex] = useState(0);
 
+  // Lấy danh sách ảnh từ product_images hoặc image_url
+  const imageList = useMemo(() => {
+    if (product.product_images && product.product_images.length > 0) {
+      // Sắp xếp để ảnh chính (is_primary) lên đầu
+      const sortedImages = [...product.product_images].sort((a, b) => 
+        (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)
+      );
+      return sortedImages.map(img => img.image_url);
+    }
+    return [product.image_url || 'https://via.placeholder.com/400x600?text=No+Image'];
+  }, [product.product_images, product.image_url]);
+
+  const imageUrl = imageList[imgIndex] || imageList[0];
+  
   // Lấy số sao trung bình từ reviews
   useEffect(() => {
     let isMounted = true;
@@ -111,25 +123,34 @@ const ProductCard = ({ product, discountedPrice, showAddToCart, className, onAdd
     <div className="relative">
       <Link
         to={`/products/${product.id}`}
-        className={
-          "block group flex flex-col items-center bg-white rounded-2xl shadow-xl p-2 sm:p-5 transition-all duration-500 hover:shadow-2xl hover:scale-105 hover:-rotate-2 hover:bg-gradient-to-br hover:from-purple-100 hover:to-blue-50 relative " +
-          (className || '')
-        }
+        className="block group flex flex-col items-center bg-white rounded-2xl shadow-xl p-2 sm:p-5 relative"
         style={{ perspective: '1000px', minHeight: 'auto', height: '100%' }}
         tabIndex={0}
       >
         {/* Product Image */}
-        <div className="aspect-[3/4] w-full max-w-[160px] sm:max-w-[220px] bg-secondary-100 relative overflow-hidden rounded-2xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 mb-2 sm:mb-4 flex-shrink-0" style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)', transform: 'translateZ(0)' }}>
+        <div
+          className="aspect-[3/4] w-full max-w-[160px] sm:max-w-[220px] bg-secondary-100 relative overflow-hidden rounded-2xl mb-2 sm:mb-4 flex-shrink-0"
+          onMouseEnter={() => { if (imageList.length > 1) setImgIndex(1); }}
+          onMouseLeave={() => setImgIndex(0)}
+        >
+          {/* Ảnh đầu */}
           <img
-            src={imageUrl}
+            src={imageList[0]}
             alt={product.name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            className={`w-full h-full object-cover absolute inset-0 transition-opacity duration-500 ${imgIndex === 0 ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
+            draggable={false}
           />
-          {/* Overlay ánh sáng động */}
-          <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition duration-500">
-            <div className="w-full h-full bg-gradient-to-tr from-white/30 to-transparent rounded-2xl blur-2xl"></div>
-          </div>
+          {/* Ảnh tiếp theo (nếu có) */}
+          {imageList[1] && (
+            <img
+              src={imageList[1]}
+              alt={product.name}
+              className={`w-full h-full object-cover absolute inset-0 transition-opacity duration-500 ${imgIndex === 1 ? 'opacity-100' : 'opacity-0'}`}
+              loading="lazy"
+              draggable={false}
+            />
+          )}
           {/* Badge % giảm giá chỉ khi là flash sale */}
           {typeof discountedPrice === 'number' && discountedPrice < product.price && (
             <div className="absolute top-2 left-2 bg-purple-600 text-white px-2 py-1 rounded-lg text-sm font-bold shadow-lg z-10">
@@ -143,7 +164,7 @@ const ProductCard = ({ product, discountedPrice, showAddToCart, className, onAdd
             onMouseMove={handleHeartMouseMove}
             onMouseLeave={handleHeartMouseLeave}
             style={heartStyle}
-            className="absolute top-2 right-2 focus:outline-none relative z-10 bg-white/80 backdrop-blur-sm rounded-full p-1.5 shadow-lg hover:bg-white transition-all duration-300"
+            className="absolute top-2 right-2 sm:right-3 md:right-4 focus:outline-none z-30 bg-white/80 backdrop-blur-sm rounded-full p-1.5 shadow-lg hover:bg-white transition-all duration-300"
             aria-label="Yêu thích"
           >
             <Heart size={20} className={isWishlisted(product.id) ? 'text-red-500 fill-red-500' : 'text-gray-400'} />
@@ -166,25 +187,25 @@ const ProductCard = ({ product, discountedPrice, showAddToCart, className, onAdd
         <p className="font-bold text-base sm:text-lg flex flex-col sm:flex-row items-center sm:items-baseline justify-center text-center break-words leading-tight mb-1">
           {typeof discountedPrice === 'number' && discountedPrice < product.price ? (
             <>
-              <span className="text-purple-700 font-bold mr-0 sm:mr-2 block">
+              <span className="text-purple-700 font-bold mr-0 sm:mr-2 block whitespace-nowrap">
                 {discountedPrice.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
               </span>
-              <span className="text-gray-400 line-through mr-0 sm:mr-2 block">
+              <span className="text-gray-400 line-through mr-0 sm:mr-2 block whitespace-nowrap">
                 {product.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
               </span>
             </>
           ) : (
             typeof product.discount_price === 'number' && product.discount_price > 0 && product.discount_price < product.price ? (
               <>
-                <span className="text-primary-600 font-bold mr-0 sm:mr-2 block">
+                <span className="text-primary-600 font-bold mr-0 sm:mr-2 block whitespace-nowrap">
                   {product.discount_price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
                 </span>
-                <span className="text-gray-400 line-through block">
+                <span className="text-gray-400 line-through block whitespace-nowrap">
                   {product.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
                 </span>
               </>
             ) : (
-              <span className="block">{product.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</span>
+              <span className="block whitespace-nowrap">{product.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</span>
             )
           )}
         </p>

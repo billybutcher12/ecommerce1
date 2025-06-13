@@ -34,6 +34,12 @@ interface Product {
   season?: string;
   origin?: string;
   washing_instruction?: string;
+  product_images?: {
+    id: string;
+    image_url: string;
+    is_primary: boolean;
+    color?: string;
+  }[];
 }
 
 interface Category {
@@ -924,6 +930,12 @@ const Products = ({ search, setSearch }: ProductsProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8; // Số sản phẩm mỗi trang
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [primaryImageIndex, setPrimaryImageIndex] = useState<number>(0);
+  const [oldImages, setOldImages] = useState<{url: string, isPrimary: boolean}[]>([]);
+  const [imageColors, setImageColors] = useState<string[]>([]);
 
   // Fetch products & categories from Supabase
   useEffect(() => {
@@ -932,18 +944,27 @@ const Products = ({ search, setSearch }: ProductsProps) => {
   }, []);
 
   const fetchProducts = async () => {
-    setIsLoading(true);
-    const { data, error } = await supabase
-      .from('products')
-      .select('id, name, category_id, description, price, image_url, is_featured, stock, created_at, colors, sizes, discount_price, material, season, origin, washing_instruction, sold')
-      .order('created_at', { ascending: false });
-    if (error) {
-      toast.error('Lỗi khi tải danh sách sản phẩm');
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          categories(name),
+          product_images:product_images(id, image_url, is_primary)
+        `)
+        .order('created_at', { ascending: false });
+
+      console.log('DATA:', data);
+      console.log('ERROR:', error);
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Không thể tải danh sách sản phẩm');
+    } finally {
       setIsLoading(false);
-      return;
     }
-    setProducts(data || []);
-    setIsLoading(false);
   };
 
   const fetchCategories = async () => {
@@ -974,7 +995,19 @@ const Products = ({ search, setSearch }: ProductsProps) => {
         origin: product.origin || '',
         washing_instruction: product.washing_instruction || '',
       });
-      setImagePreview(product.image_url);
+      if (product.product_images && product.product_images.length > 0) {
+        setOldImages(product.product_images.map(img => ({ url: img.image_url, isPrimary: img.is_primary })));
+        setPreviewImages(product.product_images.map(img => img.image_url));
+        setSelectedImages([]);
+        setPrimaryImageIndex(product.product_images.findIndex(img => img.is_primary) || 0);
+        setImageColors(product.product_images.map(img => img.color || (product.colors?.[0] || '')));
+      } else {
+        setOldImages([]);
+        setPreviewImages([]);
+        setSelectedImages([]);
+        setPrimaryImageIndex(0);
+        setImageColors([]);
+      }
     } else {
       setEditingProduct(null);
       setFormData({
@@ -994,16 +1027,25 @@ const Products = ({ search, setSearch }: ProductsProps) => {
         origin: '',
         washing_instruction: '',
       });
-      setImagePreview('');
+      setOldImages([]);
+      setPreviewImages([]);
+      setSelectedImages([]);
+      setPrimaryImageIndex(0);
+      setImageColors([]);
     }
     setIsModalOpen(true);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFormData({ ...formData, image: file });
-      setImagePreview(URL.createObjectURL(file));
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      setSelectedImages(prev => [...prev, ...files]);
+      setPreviewImages(prev => [...prev, ...files.map(file => URL.createObjectURL(file))]);
+      // Thêm màu mặc định (màu đầu tiên hoặc rỗng)
+      setImageColors(prev => [
+        ...prev,
+        ...files.map(() => (formData.colors.split(',')[0]?.trim() || ''))
+      ]);
     }
   };
 
@@ -1030,92 +1072,143 @@ const Products = ({ search, setSearch }: ProductsProps) => {
     setImagePreview('');
   };
 
-  const uploadImage = async (file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
-    const filePath = `products/${fileName}`;
-    const { error: uploadError } = await supabase.storage
-      .from('images')
-      .upload(filePath, file, {
-        upsert: true,
-        contentType: file.type
-      });
-    if (uploadError) throw uploadError;
-    const { data: { publicUrl } } = supabase.storage
-      .from('images')
-      .getPublicUrl(filePath);
-    return publicUrl;
+  const handleRemoveImage = (idx: number) => {
+    if (idx < oldImages.length) {
+      setOldImages(oldImages.filter((_, i) => i !== idx));
+      setPreviewImages(previewImages.filter((_, i) => i !== idx));
+      setImageColors(imageColors.filter((_, i) => i !== idx));
+    } else {
+      const fileIdx = idx - oldImages.length;
+      setSelectedImages(selectedImages.filter((_, i) => i !== fileIdx));
+      setPreviewImages(previewImages.filter((_, i) => i !== idx));
+      setImageColors(imageColors.filter((_, i) => i !== idx));
+    }
+  };
+
+  const uploadImages = async (files: File[]): Promise<{ url: string; isPrimary: boolean }[]> => {
+    const uploadPromises = files.map(async (file, index) => {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `products/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('images')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('images')
+        .getPublicUrl(filePath);
+
+      return {
+        url: publicUrl,
+        isPrimary: index === primaryImageIndex
+      };
+    });
+
+    return Promise.all(uploadPromises);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSubmitting(true);
+
     try {
-      // Chỉ yêu cầu các trường bắt buộc khi thêm mới
-      if (!formData.name || !formData.price || !formData.stock || !formData.category_id) {
-        toast.error('Vui lòng nhập đầy đủ các trường bắt buộc: tên, giá, tồn kho, danh mục!');
-        return;
-      }
-      let productData: any = {
+      // Lấy dữ liệu trực tiếp từ state formData
+      const productData: any = {
         name: formData.name,
+        description: formData.description,
         price: Number(formData.price),
+        category_id: formData.category_id || null,
+        is_featured: !!formData.is_featured,
         stock: Number(formData.stock),
-        category_id: formData.category_id,
-        description: formData.description || '',
+        colors: formData.colors ? formData.colors.split(',').map(s => s.trim()).filter(Boolean) : [],
+        sizes: formData.sizes ? formData.sizes.split(',').map(s => s.trim()).filter(Boolean) : [],
         discount_price: formData.discount_price ? Number(formData.discount_price) : null,
-        sold: formData.sold ? Number(formData.sold) : 0,
-        is_featured: formData.is_featured,
-        colors: formData.colors ? formData.colors.split(',').map((c: string) => c.trim()).filter(Boolean) : [],
-        sizes: formData.sizes ? formData.sizes.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
         material: formData.material || '',
         season: formData.season || '',
         origin: formData.origin || '',
         washing_instruction: formData.washing_instruction || '',
+        sold: formData.sold ? Number(formData.sold) : 0,
       };
-      if (formData.image) {
-        const imageUrl = await uploadImage(formData.image);
-        productData.image_url = imageUrl;
-      }
-      if (!editingProduct) {
-        // Thêm mới
-        const { error } = await supabase.from('products').insert([productData]);
+      // Log để debug
+      console.log('productData:', productData);
+
+      if (editingProduct) {
+        // Upload ảnh mới nếu có
+        let uploadedImages: {url: string, isPrimary: boolean}[] = [];
+        if (selectedImages.length > 0) {
+          const uploaded = await uploadImages(selectedImages);
+          uploadedImages = uploaded;
+        }
+        // Gộp ảnh cũ còn lại và ảnh mới
+        const allImages = [
+          ...oldImages,
+          ...uploadedImages
+        ].map((img, idx) => ({
+          product_id: editingProduct.id,
+          image_url: img.url,
+          is_primary: idx === primaryImageIndex,
+          color: imageColors[idx] || null
+        }));
+        // Xóa hết ảnh cũ trong DB, thêm lại toàn bộ allImages
+        const { error: deleteError } = await supabase
+          .from('product_images')
+          .delete()
+          .eq('product_id', editingProduct.id);
+        if (deleteError) throw deleteError;
+        const { error: insertError } = await supabase
+          .from('product_images')
+          .insert(allImages);
+        if (insertError) throw insertError;
+        // Cập nhật image_url đại diện
+        const primaryImage = allImages.find(img => img.is_primary);
+        if (primaryImage) {
+          productData.image_url = primaryImage.image_url;
+        }
+        const { error } = await supabase
+          .from('products')
+          .update(productData)
+          .eq('id', editingProduct.id);
         if (error) throw error;
-        toast.success('Thêm sản phẩm mới thành công!');
-        handleCloseModal();
-        fetchProducts();
-        return;
+        toast.success('Cập nhật sản phẩm thành công');
+      } else {
+        // Thêm mới sản phẩm
+        const { data, error } = await supabase
+          .from('products')
+          .insert([productData])
+          .select()
+          .single();
+        if (error) throw error;
+        // Thêm ảnh cho sản phẩm mới
+        if (selectedImages.length > 0) {
+          const uploadedImages = await uploadImages(selectedImages);
+          const { error: insertError } = await supabase
+            .from('product_images')
+            .insert(uploadedImages.map(img => ({
+              product_id: data.id,
+              image_url: img.url,
+              is_primary: img.isPrimary
+            })));
+          if (insertError) throw insertError;
+          // Lấy ảnh chính làm ảnh đại diện
+          const primaryImage = uploadedImages.find(img => img.isPrimary);
+          if (primaryImage) {
+            await supabase.from('products').update({ image_url: primaryImage.url }).eq('id', data.id);
+          }
+        }
+        toast.success('Thêm sản phẩm thành công');
       }
-      // Sửa sản phẩm (giữ nguyên logic cũ)
-      let updateData: any = {};
-      if (formData.name !== editingProduct.name) updateData.name = formData.name;
-      if (formData.price !== editingProduct.price.toString()) updateData.price = Number(formData.price);
-      if (formData.description !== editingProduct.description) updateData.description = formData.description;
-      if (formData.category_id !== editingProduct.category_id) updateData.category_id = formData.category_id;
-      if (formData.stock !== editingProduct.stock.toString()) updateData.stock = Number(formData.stock);
-      if (formData.is_featured !== editingProduct.is_featured) updateData.is_featured = formData.is_featured;
-      if (formData.discount_price !== editingProduct.discount_price?.toString()) updateData.discount_price = formData.discount_price ? Number(formData.discount_price) : null;
-      if (formData.colors !== editingProduct.colors?.join(',')) updateData.colors = formData.colors ? formData.colors.split(',').map((c: string) => c.trim()) : [];
-      if (formData.sizes !== editingProduct.sizes?.join(',')) updateData.sizes = formData.sizes ? formData.sizes.split(',').map((s: string) => s.trim()) : [];
-      if (formData.material !== editingProduct.material) updateData.material = formData.material;
-      if (formData.season !== editingProduct.season) updateData.season = formData.season;
-      if (formData.origin !== editingProduct.origin) updateData.origin = formData.origin;
-      if (formData.washing_instruction !== editingProduct.washing_instruction) updateData.washing_instruction = formData.washing_instruction;
-      if (formData.sold !== editingProduct.sold?.toString()) updateData.sold = formData.sold ? Number(formData.sold) : 0;
-      if (formData.image) {
-        const imageUrl = await uploadImage(formData.image);
-        updateData.image_url = imageUrl;
-      }
-      if (Object.keys(updateData).length === 0) {
-        toast.error('Bạn chưa thay đổi thông tin nào!');
-        return;
-      }
-      const { error } = await supabase.from('products').update(updateData).eq('id', editingProduct.id);
-      if (error) throw error;
-      toast.success('Cập nhật sản phẩm thành công!');
       handleCloseModal();
       fetchProducts();
     } catch (error) {
       console.error('Error saving product:', error);
-      toast.error('Có lỗi xảy ra khi lưu sản phẩm!');
+      toast.error('Có lỗi xảy ra khi lưu sản phẩm');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1427,24 +1520,57 @@ const Products = ({ search, setSearch }: ProductsProps) => {
                     {/* Các trường nhập liệu (giữ nguyên layout dọc) */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Hình ảnh</label>
-                      <div className="mt-1 flex items-center gap-4">
-                        {imagePreview && (
-                          <img
-                            src={imagePreview}
-                            alt="Preview"
-                            className="h-20 w-20 object-cover rounded-lg"
-                          />
-                        )}
+                      <div className="mt-1 flex flex-wrap gap-4 items-center">
+                        {previewImages.map((url, idx) => (
+                          <div key={idx} className="relative group flex flex-col items-center">
+                            <img
+                              src={url}
+                              alt={`Preview ${idx}`}
+                              className="h-20 w-20 object-cover rounded-lg border"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleRemoveImage(idx);
+                              }}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow hover:bg-red-600"
+                              title="Xóa ảnh"
+                            >×</button>
+                            {/* Box chọn màu và chọn ảnh chính */}
+                            <div className="flex gap-2 mt-2 w-full justify-center">
+                              <select
+                                className="px-2 py-1 text-xs rounded bg-white border border-gray-300"
+                                value={imageColors[idx] || ''}
+                                onChange={e => {
+                                  const newColors = [...imageColors];
+                                  newColors[idx] = e.target.value;
+                                  setImageColors(newColors);
+                                }}
+                              >
+                                <option value="">Chọn màu</option>
+                                {formData.colors.split(',').map(c => c.trim()).filter(Boolean).map((color, i) => (
+                                  <option key={i} value={color}>{color}</option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => setPrimaryImageIndex(idx)}
+                                className={`px-2 py-1 text-xs rounded ${primaryImageIndex === idx ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+                              >{primaryImageIndex === idx ? 'Ảnh chính' : 'Chọn làm chính'}</button>
+                            </div>
+                          </div>
+                        ))}
                         <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">
                           <input
                             type="file"
                             accept="image/*"
+                            multiple
                             onChange={handleImageChange}
                             className="hidden"
                           />
                           <div className="flex items-center gap-2">
                             <ImageIcon size={20} />
-                            Chọn ảnh
+                            Thêm ảnh
                           </div>
                         </label>
                       </div>

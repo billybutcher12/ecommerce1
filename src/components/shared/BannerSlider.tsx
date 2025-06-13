@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import ArrowButton from './ArrowButton';
 
 interface Banner {
   id: string | number;
@@ -129,22 +130,18 @@ const BannerSlider = ({ banners }: BannerSliderProps) => {
       </div>
 
       {/* Navigation Arrows */}
-      <button
+      <ArrowButton
+        direction="left"
         onClick={handlePrev}
-        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/30 hover:bg-white/50 text-white p-3 rounded-full transition-all duration-300 backdrop-blur-sm"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
-      <button
+        className="absolute left-4 top-1/2 -translate-y-1/2 hidden sm:flex shadow-lg"
+        size={44}
+      />
+      <ArrowButton
+        direction="right"
         onClick={handleNext}
-        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/30 hover:bg-white/50 text-white p-3 rounded-full transition-all duration-300 backdrop-blur-sm"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
+        className="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:flex shadow-lg"
+        size={44}
+      />
     </div>
   );
 };

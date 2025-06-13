@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useFlashSale } from '../hooks/useFlashSale';
 import { useCart } from '../hooks/useCart';
+import { Database } from '../lib/database.types';
 
 interface Category {
   id: string;
@@ -16,21 +17,13 @@ interface Category {
   image_url?: string;
 }
 
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  image_url: string;
-  description: string;
-  category_id: string;
-  image_urls?: string[];
+type Product = Database['public']['Tables']['products']['Row'] & {
+  sold?: number;
+  discount_price?: number;
+  product_images?: { id: string; image_url: string; is_primary: boolean; color?: string }[];
   sizes?: string[];
   colors?: string[];
-  created_at?: string;
-  stock?: number;
-  is_featured?: boolean;
-  discount_price?: number;
-}
+};
 
 interface Voucher {
   id: string;
@@ -322,7 +315,10 @@ const ProductsPage = () => {
   // Fetch products
   useEffect(() => {
     const fetchProducts = async () => {
-      const { data } = await supabase.from('products').select('*');
+      const { data } = await supabase
+        .from('products')
+        .select('*, product_images:product_images(id, image_url, is_primary, color)')
+        .order('created_at', { ascending: false });
       setProducts(data || []);
       if (data && data.length > 0) {
         const prices = data.map((p: Product) => p.price);
@@ -497,14 +493,72 @@ const ProductsPage = () => {
     fetchBanners();
   }, []);
 
-  // Hàm mở modal
-  const handleAddToCartClick = (product: Product, discountedPrice?: number) => {
-    setSelectedProduct(product);
+  // Hàm lấy ảnh theo màu (ưu tiên is_primary, nếu không có thì lấy ảnh đầu tiên của màu đó, nếu không có thì fallback ảnh mặc định)
+  const getImageByColor = (color: string): string => {
+    if (!selectedProduct) return 'https://via.placeholder.com/600x600?text=No+Image';
+    if (!color) {
+      const primaryImage = selectedProduct.product_images?.find((img) => img.is_primary);
+      return primaryImage?.image_url || selectedProduct.image_url || 'https://via.placeholder.com/600x600?text=No+Image';
+    }
+    if (selectedProduct.product_images && selectedProduct.product_images.length > 0) {
+      // So sánh không phân biệt hoa thường và loại bỏ khoảng trắng
+      const normalizedColor = color.trim().toLowerCase();
+      // Tìm ảnh chính của màu đã chọn
+      const primaryImageOfColor = selectedProduct.product_images.find(
+        (img) => (img.color?.trim().toLowerCase() === normalizedColor) && img.is_primary
+      );
+      if (primaryImageOfColor) {
+        return primaryImageOfColor.image_url;
+      }
+      // Nếu không có ảnh chính, lấy ảnh đầu tiên của màu đó
+      const firstImageOfColor = selectedProduct.product_images.find(
+        (img) => img.color?.trim().toLowerCase() === normalizedColor
+      );
+      if (firstImageOfColor) {
+        return firstImageOfColor.image_url;
+      }
+    }
+    const primaryImage = selectedProduct.product_images?.find((img) => img.is_primary);
+    return primaryImage?.image_url || selectedProduct.image_url || 'https://via.placeholder.com/600x600?text=No+Image';
+  };
+
+  // Callback mở modal
+  const handleAddToCartClick = async (product: Product, discountedPrice?: number) => {
+    let sizes = product.sizes;
+    let colors = product.colors;
+    let product_images = product.product_images;
+    
+    // Nếu thiếu, fetch lại từ bảng products
+    if (!sizes || !colors || sizes.length === 0 || colors.length === 0 || !product_images) {
+      const { data } = await supabase
+        .from('products')
+        .select('sizes, colors, product_images(id, image_url, is_primary, color)')
+        .eq('id', product.id)
+        .single();
+      
+      if (data) {
+        sizes = typeof data.sizes === 'string' ? JSON.parse(data.sizes) : (data.sizes || []);
+        colors = typeof data.colors === 'string' ? JSON.parse(data.colors) : (data.colors || []);
+        product_images = data.product_images || [];
+      }
+    }
+
+    // Tự chọn màu và size mặc định
+    const defaultColor = colors && colors.length > 0 ? colors[0] : '';
+    const defaultSize = sizes && sizes.length > 0 ? sizes[0] : '';
+
+    // Cập nhật state với đầy đủ thông tin
+    setSelectedProduct({ 
+      ...product, 
+      sizes, 
+      colors, 
+      product_images 
+    });
     setSelectedDiscountedPrice(discountedPrice);
-    setShowBuyNowModal(true);
-    setSelectedColor('');
-    setSelectedSize('');
+    setSelectedColor(defaultColor);
+    setSelectedSize(defaultSize);
     setQuantity(1);
+    setShowBuyNowModal(true);
   };
 
   // Hàm xác nhận mua
@@ -528,7 +582,7 @@ const ProductsPage = () => {
       product_id: selectedProduct.id,
       name: selectedProduct.name,
       price: finalPrice,
-      image: Array.isArray(selectedProduct.image_urls) && selectedProduct.image_urls.length > 0 ? selectedProduct.image_urls[0] : selectedProduct.image_url,
+      image: getImageByColor(selectedColor),
       quantity,
       color: selectedColor,
       size: selectedSize
@@ -1008,6 +1062,12 @@ const ProductsPage = () => {
                 </div>
               ) : (
                 paginatedProducts.map(product => {
+                  const images = Array.isArray(product.product_images)
+                    ? [
+                        ...product.product_images.filter(img => img.is_primary).map(img => img.image_url),
+                        ...product.product_images.filter(img => !img.is_primary).map(img => img.image_url)
+                      ]
+                    : [product.image_url];
                   // Tìm flash sale item tương ứng
                   const flashSaleItem = flashSaleItems.find(item => item.product.id === product.id && isFlashSaleActive(item));
                   let discountedPrice = undefined;
@@ -1019,16 +1079,8 @@ const ProductsPage = () => {
                   return (
                     <ProductCard
                       key={product.id}
-                      product={{
-                        ...product,
-                        image_urls: product.image_urls || (product.image_url ? [product.image_url] : []),
-                        sizes: Array.isArray(product.sizes) ? product.sizes : [],
-                        colors: Array.isArray(product.colors) ? product.colors : [],
-                        created_at: product.created_at || '',
-                        stock: product.stock || 0,
-                        is_featured: product.is_featured || false,
-                        flashsale: flashsale,
-                      }}
+                      product={product}
+                      images={images}
                       discountedPrice={discountedPrice}
                       showAddToCart={true}
                       onAddToCartClick={handleAddToCartClick}
@@ -1065,7 +1117,7 @@ const ProductsPage = () => {
             <Glow3DBox className="bg-white rounded-2xl shadow-2xl w-full max-w-xs md:max-w-md p-4 md:p-8 flex flex-col items-center relative animate-fadeIn">
               <Glow3DBox className="flex flex-col items-center mb-2 cursor-pointer" >
                 <img
-                  src={Array.isArray(selectedProduct.image_urls) && selectedProduct.image_urls.length > 0 ? selectedProduct.image_urls[0] : selectedProduct.image_url}
+                  src={getImageByColor(selectedColor)}
                   alt={selectedProduct.name}
                   className="w-24 h-24 md:w-32 md:h-32 object-cover rounded-2xl border-2 border-primary-100 shadow-lg mb-2"
                 />
