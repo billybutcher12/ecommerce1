@@ -558,17 +558,23 @@ const Header = () => {
                   Trang chủ
                 </Link>
                 <div className="space-y-2">
-                  <button
-                    onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                    className="w-full flex items-center justify-between text-lg font-semibold text-primary-700 py-2"
-                  >
-                    <span>Sản phẩm</span>
-                    <span className="ml-2 flex-shrink-0">
+                  <div className="flex items-center justify-between">
+                    <Link
+                      to="/products"
+                      className="text-lg font-semibold text-primary-700 py-2"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Sản phẩm
+                    </Link>
+                    <button
+                      onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                      className="p-2 hover:bg-primary-50 rounded-lg transition-colors"
+                    >
                       <svg className={`w-5 h-5 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                       </svg>
-                    </span>
-                  </button>
+                    </button>
+                  </div>
                   <AnimatePresence>
                     {showCategoryDropdown && (
                       <motion.div

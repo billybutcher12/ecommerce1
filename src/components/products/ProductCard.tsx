@@ -120,7 +120,7 @@ const ProductCard = ({ product, discountedPrice, showAddToCart, className, onAdd
   const sizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
 
   return (
-    <div className="relative">
+    <Glow3DBox className="relative">
       <Link
         to={`/products/${product.id}`}
         className="block group flex flex-col items-center bg-white rounded-2xl shadow-xl p-2 sm:p-5 relative"
@@ -262,7 +262,7 @@ const ProductCard = ({ product, discountedPrice, showAddToCart, className, onAdd
           {product.stock === 0 ? 'Đã hết hàng' : 'Thêm vào giỏ hàng'}
         </motion.button>
       </Link>
-    </div>
+    </Glow3DBox>
   );
 };
 
@@ -274,6 +274,7 @@ export const Glow3DBox = ({ children, className = '' }: { children: React.ReactN
   const [style, setStyle] = React.useState<any>({});
   const [borderPos, setBorderPos] = React.useState({ x: 50, y: 50 });
   const [hovered, setHovered] = React.useState(false);
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const box = boxRef.current;
     if (!box) return;
@@ -286,40 +287,40 @@ export const Glow3DBox = ({ children, className = '' }: { children: React.ReactN
     const rotateY = ((e.clientX - rect.left - centerX) / centerX) * 10;
     const rotateX = -((e.clientY - rect.top - centerY) / centerY) * 10;
     setStyle({
-      transform: `perspective(900px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)` ,
+      transform: `perspective(900px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
       background: '#fff',
       transition: 'transform 0.18s cubic-bezier(.25,.46,.45,.94)',
-      border: hovered
-        ? '4px solid transparent'
-        : '4px solid #fff',
-      borderImage: hovered
-        ? `radial-gradient(circle at ${borderPos.x}% ${borderPos.y}%, #a78bfa 0%, #7c3aed 60%, transparent 100%) 1` 
-        : 'none',
-      boxSizing: 'border-box',
+      '--border-x': `${borderPos.x}%`,
+      '--border-y': `${borderPos.y}%`,
+      '--border-opacity': hovered ? '1' : '0',
     });
   };
+
   const handleMouseLeave = () => {
     setHovered(false);
     setStyle({
       transform: 'perspective(900px) rotateX(0deg) rotateY(0deg)',
       background: '#fff',
-      border: '4px solid #fff',
-      borderImage: 'none',
-      transition: 'transform 0.3s, border 0.3s',
-      boxSizing: 'border-box',
+      '--border-opacity': '0',
+      transition: 'transform 0.3s, --border-opacity 0.3s',
     });
   };
+
   const handleMouseEnter = () => setHovered(true);
+
   return (
     <div
       ref={boxRef}
-      className={className + ' relative'}
-      style={style}
+      className={`${className} relative before:content-[''] before:absolute before:inset-0 before:rounded-xl before:p-[6px] before:bg-gradient-to-r before:from-primary-600 before:to-purple-500 before:opacity-0 before:transition-opacity before:duration-300 before:z-10`}
+      style={{
+        ...style,
+        '--border-opacity': hovered ? '1' : '0',
+      }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onMouseEnter={handleMouseEnter}
     >
-      <div className="relative z-20">{children}</div>
+      <div className="relative z-20 bg-white rounded-xl">{children}</div>
     </div>
   );
 };

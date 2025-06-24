@@ -15,6 +15,7 @@ import { useCart } from '../hooks/useCart';
 import { toast } from 'react-toastify';
 import React, { useRef } from 'react';
 import ArrowButton from '../components/shared/ArrowButton';
+import ScrollToTopButton from '../components/ui/ScrollToTopButton';
 
 type Category = Database['public']['Tables']['categories']['Row'];
 
@@ -434,17 +435,17 @@ const HomePage = () => {
         </section>
         {/* Flash Sale Section */}
         {activeFlashSaleItems.length > 0 && (
-          <section className="relative py-10 md:py-16 bg-gradient-to-r from-purple-50 via-white to-purple-100 border-b-2 border-purple-100 mb-8">
-            <div className="container mx-auto px-4">
-              <div className="max-w-6xl mx-auto px-4">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                  <div className="flex items-center gap-4">
-                    <span className="text-4xl md:text-5xl font-extrabold text-purple-600 tracking-tight flex items-center">
+          <section className="relative py-10 md:py-16 bg-gradient-to-r from-purple-50 via-white to-purple-100 border-b-2 border-purple-100 mb-8 ">
+            <div className="container mx-auto px-2 sm:px-4">
+              <div className="max-w-6xl mx-auto px-0 sm:px-4">
+                {/* Dòng chữ FLASH SALE và countdown time */}
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 text-center md:text-left">
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 w-full">
+                    <span className="text-3xl xs:text-4xl md:text-5xl font-extrabold text-purple-600 tracking-tight flex items-center justify-center">
                       <span className="mr-2">⚡</span>FLASH SALE
                     </span>
                     {currentFlashSale?.end_time && <CountdownBar endTime={currentFlashSale.end_time} />}
                   </div>
-                  {/* <Link to="/flash-sale" className="text-purple-600 font-bold hover:underline text-lg md:text-xl transition-transform hover:scale-110">Xem tất cả &gt;</Link> */}
                 </div>
                 {flashSaleLoading ? (
                   <div className="text-center text-purple-400 py-10">Đang tải Flash Sale...</div>
@@ -461,11 +462,11 @@ const HomePage = () => {
                     swipeToSlide={true}
                     touchThreshold={12}
                     cssEase="ease-in-out"
-                    className="pl-8 pr-8"
+                    className="px-1 sm:px-8"
                     responsive={[
                       { breakpoint: 1024, settings: { slidesToShow: 3, infinite: activeFlashSaleItems.length > 3, arrows: true } },
-                      { breakpoint: 768, settings: { slidesToShow: 2, infinite: activeFlashSaleItems.length > 2, arrows: true } },
-                      { breakpoint: 640, settings: { slidesToShow: 2, infinite: activeFlashSaleItems.length > 2, arrows: false } },
+                      { breakpoint: 768, settings: { slidesToShow: 2, infinite: activeFlashSaleItems.length > 2, arrows: false, centerMode: false } },
+                      { breakpoint: 640, settings: { slidesToShow: 2, infinite: activeFlashSaleItems.length > 2, arrows: false, centerMode: false } },
                     ]}
                   >
                     {activeFlashSaleItems.map(item => {
@@ -630,8 +631,8 @@ const HomePage = () => {
         </section>
 
         {/* Featured Products */}
-        <section className="py-32 relative bg-gray-50">
-          <div className="container mx-auto px-4">
+        <section className="py-32 relative bg-gray-50 pb-10">
+          <div className="container mx-auto px-2 sm:px-4">
             <motion.div
               className="text-center mb-20"
               initial={{ opacity: 0, y: 40 }}
@@ -646,7 +647,6 @@ const HomePage = () => {
                 Những sản phẩm được yêu thích nhất tại cửa hàng của chúng tôi
               </p>
             </motion.div>
-
             {/* Quick Filters */}
             {(() => {
               const [filter, setFilter] = useState<'all' | 'newest' | 'bestseller' | 'discount'>('all');
@@ -659,9 +659,7 @@ const HomePage = () => {
                   return [...products].sort((a, b) => (b.sold || 0) - (a.sold || 0)).slice(0, 8);
                 }
                 if (filter === 'discount') {
-                  // Lấy sản phẩm flash sale trước (object gốc, có đủ product_images)
                   const flashSaleProducts = activeFlashSaleItems.map(item => item.product);
-                  // Lấy sản phẩm giảm giá thông thường (object gốc)
                   const regularDiscountProducts = products
                     .filter(p => typeof p.discount_price === 'number' && p.discount_price < p.price)
                     .filter(p => !flashSaleProducts.some(fp => fp.id === p.id));
@@ -691,7 +689,7 @@ const HomePage = () => {
                 {loading ? (
                   <div className="text-center text-gray-500 py-20">Đang tải sản phẩm...</div>
                 ) : (
-                  <div className="max-w-6xl mx-auto px-4">
+                  <div className="max-w-6xl mx-auto px-0 sm:px-4">
                     <Slider
                       dots={false}
                       infinite={filteredProducts.length > 4}
@@ -704,18 +702,18 @@ const HomePage = () => {
                       swipeToSlide={true}
                       touchThreshold={12}
                       cssEase="ease-in-out"
-                      className="pl-8 pr-8"
+                      className="px-1 sm:px-8"
                       responsive={[
                         { breakpoint: 1024, settings: { slidesToShow: 3, infinite: filteredProducts.length > 3, arrows: true } },
-                        { breakpoint: 768, settings: { slidesToShow: 2, infinite: filteredProducts.length > 2, arrows: true } },
-                        { breakpoint: 640, settings: { slidesToShow: 2, infinite: filteredProducts.length > 2, arrows: false } },
+                        { breakpoint: 768, settings: { slidesToShow: 2, infinite: filteredProducts.length > 2, arrows: false, centerMode: false } },
+                        { breakpoint: 640, settings: { slidesToShow: 2, infinite: filteredProducts.length > 2, arrows: false, centerMode: false } },
                       ]}
                     >
                       {filteredProducts.map((prodRaw) => {
                         const flashSaleItem = activeFlashSaleItems.find(f => f.product.id === prodRaw.id);
                         if (flashSaleItem) {
                           return (
-                            <div key={flashSaleItem.product.id} className="px-1 sm:px-2">
+                            <div key={flashSaleItem.product.id} className="px-2">
                               <ProductCard
                                 product={ensureFullProductFields(flashSaleItem.product)}
                                 discountedPrice={calculateDiscountedPrice(flashSaleItem)}
@@ -726,7 +724,7 @@ const HomePage = () => {
                           );
                         }
                         return (
-                          <div key={prodRaw.id} className="px-1 sm:px-2">
+                          <div key={prodRaw.id} className="px-2">
                             <ProductCard
                               product={ensureFullProductFields(prodRaw)}
                               showAddToCart
@@ -894,6 +892,7 @@ const HomePage = () => {
           </div>
         </section>
       </div>
+      <ScrollToTopButton />
     </ParallaxProvider>
   );
 };

@@ -1100,23 +1100,31 @@ export default function ProfilePage() {
                     <span className="font-medium flex-1 text-left ml-2">{TABS.find(tab => tab.key === activeTab)?.label}</span>
                     <Menu size={20} />
                   </button>
-                  {showTabDropdown && (
-                    <div className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-lg z-20">
-                      {TABS.map(tab => (
-                        <button
-                          key={tab.key}
-                          onClick={() => {
-                            setActiveTab(tab.key);
-                            setShowTabDropdown(false);
-                          }}
-                          className={`flex items-center gap-2 w-full px-4 py-3 rounded-lg transition-all text-left ${activeTab === tab.key ? 'bg-primary-100 text-primary-700' : 'text-gray-700 hover:bg-gray-100'}`}
-                        >
-                          {tab.icon}
-                          <span className="font-medium">{tab.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <AnimatePresence>
+                    {showTabDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -16 }}
+                        transition={{ duration: 0.22, type: 'spring', stiffness: 180, damping: 18 }}
+                        className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-lg z-20 max-h-72 overflow-y-auto"
+                      >
+                        {TABS.map(tab => (
+                          <button
+                            key={tab.key}
+                            onClick={() => {
+                              setActiveTab(tab.key);
+                              setShowTabDropdown(false);
+                            }}
+                            className={`flex items-center gap-2 w-full px-4 py-3 rounded-lg transition-all text-left ${activeTab === tab.key ? 'bg-primary-100 text-primary-700' : 'text-gray-700 hover:bg-gray-100'}`}
+                          >
+                            {tab.icon}
+                            <span className="font-medium">{tab.label}</span>
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
                 {/* Desktop: Sidebar Tab */}
                 <div className="hidden md:flex flex-col space-y-4 w-full">

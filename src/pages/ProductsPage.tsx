@@ -10,6 +10,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useFlashSale } from '../hooks/useFlashSale';
 import { useCart } from '../hooks/useCart';
 import { Database } from '../lib/database.types';
+import ScrollToTopButton from '../components/ui/ScrollToTopButton';
 
 interface Category {
   id: string;
@@ -131,6 +132,37 @@ function CategoryList({ selectedCategory, setSelectedCategory }: { selectedCateg
           >
             Tất cả
             {selectedCategory === null && (
+              <span className="block w-8 h-1 bg-purple-400 rounded-full mx-auto mt-1 animate-fade-in" />
+            )}
+          </span>
+        </motion.div>
+        {/* Flash Sale */}
+        <motion.div
+          className="flex flex-col items-center group cursor-pointer relative"
+          whileHover={{
+            scale: 1.13,
+            rotateY: 12,
+            boxShadow: '0 16px 48px 0 rgba(80,36,255,0.22), 0 0 24px 0 #a78bfa55',
+            filter: 'brightness(1.08) drop-shadow(0 0 16px #a78bfa88)',
+          }}
+          whileTap={{ scale: 0.97, rotateY: -8 }}
+          transition={{ type: 'spring', stiffness: 220, damping: 18 }}
+          style={{ perspective: 800, minWidth: 110, minHeight: 140 }}
+          onClick={() => setSelectedCategory('flashsale')}
+        >
+          <motion.div
+            className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden bg-gray-100 mb-2 border border-purple-100 group-hover:border-purple-400 transition flex items-center justify-center text-3xl"
+            whileHover={{ rotateX: 10, scale: 1.10, borderColor: '#a78bfa', boxShadow: '0 0 32px #a78bfa88' }}
+            transition={{ type: 'spring', stiffness: 180, damping: 16 }}
+          >
+            <span>⚡</span>
+          </motion.div>
+          <span
+            className={`text-sm md:text-base font-semibold text-primary-700 group-hover:text-purple-600 transition-colors duration-200 text-center drop-shadow group-hover:drop-shadow-lg ${selectedCategory === 'flashsale' ? 'font-bold relative' : ''}`}
+            style={selectedCategory === 'flashsale' ? { fontWeight: 700 } : { }}
+          >
+            ⚡ Flash Sale
+            {selectedCategory === 'flashsale' && (
               <span className="block w-8 h-1 bg-purple-400 rounded-full mx-auto mt-1 animate-fade-in" />
             )}
           </span>
@@ -330,9 +362,12 @@ const ProductsPage = () => {
     fetchProducts();
   }, []);
 
-  // Lấy tất cả size và màu từ danh sách sản phẩm
-  const allSizes = Array.from(new Set(products.flatMap(p => p.sizes || [])));
-  const allColors = Array.from(new Set(products.flatMap(p => p.colors || [])));
+  // Lấy tất cả size và màu từ danh sách sản phẩm (theo danh mục đã chọn)
+  const filteredForFilter = selectedCategory && selectedCategory !== 'flashsale'
+    ? products.filter(p => String(p.category_id) === String(selectedCategory))
+    : products;
+  const allSizes = Array.from(new Set(filteredForFilter.flatMap(p => p.sizes || [])));
+  const allColors = Array.from(new Set(filteredForFilter.flatMap(p => p.colors || [])));
 
   // Log kiểm tra dữ liệu trước khi filter
   useEffect(() => {
@@ -344,7 +379,10 @@ const ProductsPage = () => {
   // Filter products
   useEffect(() => {
     let filtered = [...products];
-    if (selectedCategory) {
+    if (selectedCategory === 'flashsale') {
+      const flashSaleIds = flashSaleItems.filter(isFlashSaleActive).map(item => item.product.id);
+      filtered = products.filter(p => flashSaleIds.includes(p.id));
+    } else if (selectedCategory) {
       filtered = filtered.filter((p) => String(p.category_id) === String(selectedCategory));
     }
     filtered = filtered.filter(
@@ -368,15 +406,20 @@ const ProductsPage = () => {
     if (onlyDiscount) {
       filtered = filtered.filter(p => typeof p.discount_price === 'number' && p.discount_price > 0 && p.discount_price < p.price);
     }
+    // Sắp xếp
     if (sort === 'latest') {
-      filtered = filtered.sort((a, b) => (a.id < b.id ? 1 : -1));
+      filtered = filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     } else if (sort === 'price_asc') {
       filtered = filtered.sort((a, b) => a.price - b.price);
     } else if (sort === 'price_desc') {
       filtered = filtered.sort((a, b) => b.price - a.price);
+    } else if (sort === 'name_asc') {
+      filtered = filtered.sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }));
+    } else if (sort === 'name_desc') {
+      filtered = filtered.sort((a, b) => b.name.localeCompare(a.name, 'vi', { sensitivity: 'base' }));
     }
     setFilteredProducts(filtered);
-  }, [products, selectedCategory, priceRange, sort, search, selectedSizes, selectedColors, selectedRatings, onlyDiscount, productRatings]);
+  }, [products, selectedCategory, priceRange, sort, search, selectedSizes, selectedColors, selectedRatings, onlyDiscount, productRatings, flashSaleItems]);
 
   const suggestionProducts = search.trim()
     ? products.filter((p) =>
@@ -717,6 +760,16 @@ const ProductsPage = () => {
                   >
                     Tất cả
                   </li>
+                  <li
+                    className={`cursor-pointer py-2 px-3 rounded-lg transition-all duration-200 ${
+                      selectedCategory === 'flashsale'
+                        ? 'bg-pink-100 text-pink-700 font-semibold shadow-md'
+                        : 'hover:bg-pink-50 hover:shadow-sm'
+                    }`}
+                    onClick={() => handleSelectCategory('flashsale')}
+                  >
+                    ⚡ Flash Sale
+                  </li>
                   {categories.map((cat) => (
                     <li
                       key={cat.id}
@@ -884,6 +937,12 @@ const ProductsPage = () => {
                       onClick={() => { handleSelectCategory(null); setShowFilterModal(false); }}
                     >
                       Tất cả
+                    </li>
+                    <li
+                      className={`cursor-pointer py-2 px-3 rounded-lg transition-all duration-200 ${selectedCategory === 'flashsale' ? 'bg-pink-100 text-pink-700 font-semibold shadow-md' : 'hover:bg-pink-50 hover:shadow-sm'}`}
+                      onClick={() => { handleSelectCategory('flashsale'); setShowFilterModal(false); }}
+                    >
+                      ⚡ Flash Sale
                     </li>
                     {categories.map((cat) => (
                       <li
@@ -1202,6 +1261,7 @@ const ProductsPage = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      <ScrollToTopButton />
     </div>
   );
 };
