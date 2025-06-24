@@ -21,7 +21,8 @@ import AboutPage from './pages/AboutPage';
 import MissionPage from './pages/MissionPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Bubble } from "@typebot.io/react";
+import { Toaster } from "react-hot-toast";
+import BotpressChat from "./components/botpress/BotpressChat";
 
 function App() {
   const location = useLocation();
@@ -55,19 +56,10 @@ function App() {
           </main>
           <Footer />
           <ToastContainer position="top-right" autoClose={2000} />
-          <Bubble
-            typebot="customer-support-rtrop3h"
-            apiHost="https://typebot.io"
-            theme={{
-              button: {
-                backgroundColor: "#1D1D1D",
-                customIconSrc:
-                  "https://s3.typebot.io/public/workspaces/cmb52lqi50005d2kppsogystm/typebots/c8s88kdieb5m5078krtrop3h/bubble-icon?v=1749391486690",
-              },
-            }}
-          />
         </div>
       </FlashSaleProvider>
+      <Toaster />
+      <BotpressChat />
     </AuthProvider>
   );
 }
