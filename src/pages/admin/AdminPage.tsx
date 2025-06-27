@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import {  Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import {  Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, } from 'recharts';
 import { toast } from 'react-hot-toast';
 import { User, Package, Settings as Menu, X, Image as ImageIcon, LayoutDashboard, List, ShoppingCart, Users, Bell, Download, Mail, AlertTriangle, Calendar, LucideIcon, Gift } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Pagination from '../../components/shared/Pagination';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
-import { format, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay, eachDayOfInterval } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
@@ -94,6 +94,7 @@ interface DashboardStats {
   }[];
   previousPeriodRevenue: number;
   revenueChange: number;
+  orders: { created_at: string; total_amount: number }[];
 }
 
 // Animation variants
@@ -208,9 +209,21 @@ const formatCurrency = (amount: number) => {
 // Hàm dịch trạng thái đơn hàng sang tiếng Việt
 function translateOrderStatus(status: string) {
   switch (status) {
-    case 'pending': return 'chờ duyệt';
-    case 'confirmed': return 'đã duyệt';
-    case 'cancelled': return 'đã hủy';
+    case 'pending': return 'Chờ duyệt';
+    case 'confirmed': return 'Đã duyệt';
+    case 'cancelled': return 'Đã hủy';
+    default: return status;
+  }
+}
+
+// Hàm dịch trạng thái giao hàng sang tiếng Việt
+function translateDeliveryStatus(status: string) {
+  switch (status) {
+    case 'pending': return 'Chờ đóng gói';
+    case 'processing': return 'Đang đóng gói';
+    case 'shipping': return 'Đang giao';
+    case 'delivered': return 'Đã giao';
+    case 'cancelled': return 'Bị hủy';
     default: return status;
   }
 }
@@ -235,6 +248,38 @@ function formatShortMoney(amount: number) {
   }
   if (amount >= 1_000) return `${Math.round(amount / 1_000)}k`;
   return amount.toString();
+}
+
+// Hàm gom nhóm doanh thu theo ngày, trả về mảng [{date, revenue}]
+function getRevenueByDay(orders: { created_at: string; total_amount: number }[], period: string) {
+  let start: Date, end: Date;
+  const now = new Date();
+  if (period === 'thisWeek') {
+    start = startOfWeek(now, { locale: vi });
+    end = endOfWeek(now, { locale: vi });
+  } else {
+    start = startOfMonth(now);
+    end = endOfMonth(now);
+  }
+  const days = eachDayOfInterval({ start, end });
+  // Khởi tạo map ngày -> 0
+  const revenueMap: Record<string, number> = {};
+  days.forEach(day => {
+    const d = format(day, 'yyyy-MM-dd');
+    revenueMap[d] = 0;
+  });
+  // Cộng doanh thu vào từng ngày
+  orders.forEach(order => {
+    const d = order.created_at.slice(0, 10);
+    if (revenueMap[d] !== undefined) {
+      revenueMap[d] += order.total_amount;
+    }
+  });
+  // Trả về mảng
+  return days.map(day => ({
+    date: format(day, 'dd/MM/yyyy'),
+    revenue: revenueMap[format(day, 'yyyy-MM-dd')]
+  }));
 }
 
 const AdminPage = () => {
@@ -340,7 +385,8 @@ const AdminPage = () => {
         lowStockProducts: products?.filter(p => p.stock < 10) || [],
         topSellingProducts: [],
         previousPeriodRevenue: previousOrders?.reduce((sum, order) => sum + order.total_amount, 0) || 0,
-        revenueChange: 0
+        revenueChange: 0,
+        orders: ordersWithUsers || []
       };
 
       // Calculate top selling products
@@ -349,10 +395,12 @@ const AdminPage = () => {
         if (Array.isArray(order.items)) {
           order.items.forEach((item: any) => {
             if (!item.product_id) return;
+            // Chỉ lấy sản phẩm còn tồn tại
+            const prod = products?.find(p => p.id === item.product_id);
+            if (!prod) return; // Nếu sản phẩm đã xóa thì bỏ qua
             if (!productSales[item.product_id]) {
-              const prod = products?.find(p => p.id === item.product_id);
               productSales[item.product_id] = {
-                product: prod || { id: item.product_id, name: item.name, price: item.price, image_url: item.image, description: '', is_featured: false, category_id: null, stock: 0, created_at: '', colors: [], sizes: [] },
+                product: prod,
                 quantity: 0,
                 revenue: 0
               };
@@ -643,15 +691,7 @@ const Dashboard = ({
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Tổng quan</h2>
         <div className="flex gap-2">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleExportExcel}
-            className="bg-primary-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2"
-          >
-            <Download size={20} />
-            Xuất báo cáo
-          </motion.button>
+          
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
@@ -741,6 +781,24 @@ const Dashboard = ({
               </p>
         </motion.div>
       </div>
+
+          {/* Biểu đồ doanh thu theo ngày */}
+          <div className="bg-white p-6 rounded-xl shadow-lg mt-4">
+            <h3 className="text-lg font-medium mb-4">
+              Thống kê doanh thu theo {selectedPeriod === 'thisWeek' ? 'tuần (7 ngày)' : 'tháng'}
+            </h3>
+            <div className="w-full h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={getRevenueByDay(stats.orders || [], selectedPeriod)} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" fontSize={12} />
+                  <YAxis fontSize={12} tickFormatter={formatShortMoney} />
+                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  <Bar dataKey="revenue" fill="#6e56cf" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
 
           {/* Charts and tables */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -2522,21 +2580,21 @@ const Orders = () => {
   };
 
   // Thêm hàm cập nhật trạng thái giao hàng
-  const handleUpdateDeliveryStatus = async (id: string, currentStatus: string) => {
+  const handleUpdateDeliveryStatus = async (id: string, newStatus: string) => {
     setActionLoading(id + '-update-delivery');
-    let nextStatus = '';
-    if (currentStatus === 'pending') nextStatus = 'processing';
-    else if (currentStatus === 'processing') nextStatus = 'shipping';
-    else if (currentStatus === 'shipping') nextStatus = 'delivered';
-    else return;
     try {
       const { error } = await supabase
         .from('orders')
-        .update({ delivery_status: nextStatus })
+        .update({ delivery_status: newStatus })
         .eq('id', id);
       if (error) throw error;
       toast.success('Cập nhật trạng thái thành công!');
       fetchOrders();
+      setSelectedOrder(prev =>
+        prev && prev.id === id
+          ? { ...prev, delivery_status: newStatus as Order["delivery_status"] }
+          : prev
+      );
     } catch (err) {
       toast.error('Có lỗi khi cập nhật trạng thái!');
     } finally {
@@ -2748,7 +2806,8 @@ const Orders = () => {
                 <div className="mb-2"><b>Khách hàng:</b> {selectedOrder.user?.full_name || selectedOrder.user_id}</div>
                 <div className="mb-2"><b>Email:</b> {selectedOrder.user?.email}</div>
                 <div className="mb-2"><b>Ngày đặt:</b> {new Date(selectedOrder.created_at).toLocaleString('vi-VN')}</div>
-                <div className="mb-2"><b>Trạng thái:</b> <span className="font-semibold">{translateOrderStatus(selectedOrder.status)}</span></div>
+                <div className="mb-2"><b>Trạng thái duyệt:</b> <span className="font-semibold">{translateOrderStatus(selectedOrder.status)}</span></div>
+                <div className="mb-2"><b>Trạng thái giao hàng:</b> <span className="font-semibold">{translateDeliveryStatus(selectedOrder.delivery_status || "")}</span></div>
                 <div className="mb-2"><b>Tổng tiền:</b> <span className="text-primary-600 font-bold">{selectedOrder.total_amount?.toLocaleString('vi-VN')}đ</span></div>
                 {selectedOrder.address && (
                   <div className="mb-2"><b>Địa chỉ giao hàng:</b> {selectedOrder.address}</div>
@@ -2904,30 +2963,38 @@ const Orders = () => {
         <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
             <h3 className="text-xl font-bold mb-4 text-primary-700">Cập nhật trạng thái đơn hàng</h3>
+            <div className="mb-4">
+              <div><b>Trạng thái duyệt:</b> <span className="font-semibold">{translateOrderStatus(selectedOrder.status)}</span></div>
+              <div><b>Trạng thái giao hàng:</b> <span className="font-semibold">{translateDeliveryStatus(selectedOrder.delivery_status || "")}</span></div>
+            </div>
             <div className="flex flex-col gap-4">
               <button
-                className="px-4 py-2 rounded bg-blue-500 text-white font-semibold hover:bg-blue-600"
+                className="px-4 py-2 rounded bg-blue-500 text-white font-semibold hover:bg-blue-600 disabled:opacity-60"
                 onClick={() => handleUpdateDeliveryStatus(selectedOrder.id, "processing")}
+                disabled={selectedOrder.delivery_status !== 'pending'}
               >
-                Đang xử lý (processing)
+                Đang đóng gói (processing)
               </button>
               <button
-                className="px-4 py-2 rounded bg-yellow-500 text-white font-semibold hover:bg-yellow-600"
+                className="px-4 py-2 rounded bg-yellow-500 text-white font-semibold hover:bg-yellow-600 disabled:opacity-60"
                 onClick={() => handleUpdateDeliveryStatus(selectedOrder.id, "shipping")}
+                disabled={selectedOrder.delivery_status !== 'processing'}
               >
                 Đang giao (shipping)
               </button>
               <button
-                className="px-4 py-2 rounded bg-green-500 text-white font-semibold hover:bg-green-600"
+                className="px-4 py-2 rounded bg-green-500 text-white font-semibold hover:bg-green-600 disabled:opacity-60"
                 onClick={() => handleUpdateDeliveryStatus(selectedOrder.id, "delivered")}
+                disabled={selectedOrder.delivery_status !== 'shipping'}
               >
                 Đã giao (delivered)
               </button>
               <button
-                className="px-4 py-2 rounded bg-red-500 text-white font-semibold hover:bg-red-600"
+                className="px-4 py-2 rounded bg-red-500 text-white font-semibold hover:bg-red-600 disabled:opacity-60"
                 onClick={() => handleUpdateDeliveryStatus(selectedOrder.id, "cancelled")}
+                disabled={selectedOrder.delivery_status === 'delivered' || selectedOrder.delivery_status === 'cancelled'}
               >
-                Hủy đơn (cancelled)
+                Bị hủy (cancelled)
               </button>
             </div>
             <div className="flex justify-end mt-6">

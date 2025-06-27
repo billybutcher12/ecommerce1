@@ -950,8 +950,8 @@ const ProductDetailPage = () => {
                 {Array.isArray(product?.sizes) && product.sizes.length > 0 && (
                   <div className="mb-4 w-full flex flex-col items-center">
                     <label className="block text-base font-semibold text-gray-700 mb-2">Kích cỡ</label>
-                    <div className="w-full overflow-x-auto pb-2 -mx-4 px-4">
-                      <div className="flex gap-3 min-w-max">
+                    <div className="w-fulli">
+                      <div className="flex gap-3 flex-wrap">
                         {product.sizes.map((size: string, idx: number) => (
                           <button
                             key={size}
