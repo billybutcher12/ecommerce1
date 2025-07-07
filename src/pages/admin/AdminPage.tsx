@@ -8,7 +8,7 @@ import { supabase } from '../../lib/supabase';
 import Pagination from '../../components/shared/Pagination';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
-import { format, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay, eachDayOfInterval } from 'date-fns';
+import { addMonths, format, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfDay, endOfDay, eachDayOfInterval } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
@@ -143,8 +143,6 @@ const timePeriods = [
   { label: 'Hôm nay', value: 'today' },
   { label: 'Tuần này', value: 'thisWeek' },
   { label: 'Tháng này', value: 'thisMonth' },
-  { label: 'Tháng trước', value: 'lastMonth' },
-  { label: 'Quý này', value: 'thisQuarter' },
   { label: 'Năm nay', value: 'thisYear' },
   { label: 'Tùy chỉnh', value: 'custom' }
 ];
@@ -251,31 +249,100 @@ function formatShortMoney(amount: number) {
 }
 
 // Hàm gom nhóm doanh thu theo ngày, trả về mảng [{date, revenue}]
-function getRevenueByDay(orders: { created_at: string; total_amount: number }[], period: string) {
+function getRevenueByDay(
+  orders: { created_at: string; total_amount: number }[],
+  period: string,
+  customRange?: { start: Date; end: Date }
+) {
   let start: Date, end: Date;
-  const now = new Date();
-  if (period === 'thisWeek') {
-    start = startOfWeek(now, { locale: vi });
-    end = endOfWeek(now, { locale: vi });
+  if (period === 'custom' && customRange) {
+    start = customRange.start;
+    end = customRange.end;
   } else {
-    start = startOfMonth(now);
-    end = endOfMonth(now);
+    const range = getDateRange(period);
+    start = range.start;
+    end = range.end;
   }
+  const diffDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const diffYears = end.getFullYear() - start.getFullYear();
+  console.log('start:', start, 'end:', end, 'diffDays:', diffDays, 'period:', period);
+  // Gom nhóm theo ngày nếu <= 31 ngày
+  if (diffDays <= 31) {
+    const days = eachDayOfInterval({ start, end });
+    const revenueMap: Record<string, number> = {};
+    days.forEach(day => {
+      const d = format(day, 'yyyy-MM-dd');
+      revenueMap[d] = 0;
+    });
+    orders.forEach(order => {
+      const d = order.created_at.slice(0, 10);
+      if (revenueMap[d] !== undefined) {
+        revenueMap[d] += order.total_amount;
+      }
+    });
+    return days.map(day => ({
+      date: format(day, 'dd/MM/yyyy'),
+      revenue: revenueMap[format(day, 'yyyy-MM-dd')]
+    }));
+  }
+  // Gom nhóm theo tháng nếu > 31 ngày và <= 366 ngày
+  if (diffDays > 31 && diffYears < 2) {
+    const months = [];
+    let current = startOfMonth(start);
+    while (current <= end) {
+      months.push(new Date(current));
+      current = addMonths(current, 1);
+    }
+    const revenueMap: Record<string, number> = {};
+    months.forEach(month => {
+      const m = format(month, 'yyyy-MM');
+      revenueMap[m] = 0;
+    });
+    orders.forEach(order => {
+      const m = order.created_at.slice(0, 7);
+      if (revenueMap[m] !== undefined) {
+        revenueMap[m] += order.total_amount;
+      }
+    });
+    return months.map(month => ({
+      date: format(month, 'MM/yyyy'),
+      revenue: revenueMap[format(month, 'yyyy-MM')]
+    }));
+  }
+  // Gom nhóm theo năm nếu > 366 ngày
+  if (diffYears >= 2) {
+    const years = [];
+    for (let y = start.getFullYear(); y <= end.getFullYear(); y++) {
+      years.push(y);
+    }
+    const revenueMap: Record<string, number> = {};
+    years.forEach(year => {
+      revenueMap[year] = 0;
+    });
+    orders.forEach(order => {
+      const y = new Date(order.created_at).getFullYear();
+      if (revenueMap[y] !== undefined) {
+        revenueMap[y] += order.total_amount;
+      }
+    });
+    return years.map(year => ({
+      date: year.toString(),
+      revenue: revenueMap[year]
+    }));
+  }
+  // Trường hợp fallback (gom theo ngày)
   const days = eachDayOfInterval({ start, end });
-  // Khởi tạo map ngày -> 0
   const revenueMap: Record<string, number> = {};
   days.forEach(day => {
     const d = format(day, 'yyyy-MM-dd');
     revenueMap[d] = 0;
   });
-  // Cộng doanh thu vào từng ngày
   orders.forEach(order => {
     const d = order.created_at.slice(0, 10);
     if (revenueMap[d] !== undefined) {
       revenueMap[d] += order.total_amount;
     }
   });
-  // Trả về mảng
   return days.map(day => ({
     date: format(day, 'dd/MM/yyyy'),
     revenue: revenueMap[format(day, 'yyyy-MM-dd')]
@@ -685,6 +752,34 @@ const Dashboard = ({
     saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'bao_cao_san_pham.xlsx');
   };
 
+  let revenueTitle = "Thống kê doanh thu";
+if (selectedPeriod === "custom" && customDateRange) {
+  const diffDays = Math.ceil((customDateRange.end.getTime() - customDateRange.start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const diffYears = customDateRange.end.getFullYear() - customDateRange.start.getFullYear();
+  if (diffDays <= 31) revenueTitle = "Thống kê doanh thu theo ngày";
+  else if (diffDays > 31 && diffYears < 2) revenueTitle = "Thống kê doanh thu theo tháng";
+  else revenueTitle = "Thống kê doanh thu theo năm";
+} else {
+  switch (selectedPeriod) {
+    case "today":
+      revenueTitle = "Thống kê doanh thu theo ngày";
+      break;
+    case "thisWeek":
+      revenueTitle = "Thống kê doanh thu theo tuần";
+      break;
+    case "thisMonth":
+    case "lastMonth":
+    case "thisQuarter":
+      revenueTitle = "Thống kê doanh thu theo ngày";
+      break;
+    case "thisYear":
+      revenueTitle = "Thống kê doanh thu theo tháng";
+      break;
+    default:
+      revenueTitle = "Thống kê doanh thu";
+  }
+}
+
   return (
     <div className="space-y-6">
       {/* Header with actions */}
@@ -784,12 +879,15 @@ const Dashboard = ({
 
           {/* Biểu đồ doanh thu theo ngày */}
           <div className="bg-white p-6 rounded-xl shadow-lg mt-4">
-            <h3 className="text-lg font-medium mb-4">
-              Thống kê doanh thu theo {selectedPeriod === 'thisWeek' ? 'tuần (7 ngày)' : 'tháng'}
-            </h3>
+          <h3 className="text-lg font-medium mb-4">
+            {revenueTitle}
+          </h3>
             <div className="w-full h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={getRevenueByDay(stats.orders || [], selectedPeriod)} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+              <BarChart
+                data={getRevenueByDay(stats.orders || [], selectedPeriod, customDateRange)}
+                margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+              >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" fontSize={12} />
                   <YAxis fontSize={12} tickFormatter={formatShortMoney} />
@@ -5632,7 +5730,7 @@ function ReportPage() {
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'bao_cao_doanh_thu.xlsx');
   };
-
+  
   // Hàm tải file từ blob
   const handleDownload = () => {
     if (excelBlob && previewTitle) {
@@ -5644,6 +5742,8 @@ function ReportPage() {
     }
   };
 
+  
+  
   return (
     <div className="p-8 max-w-2xl mx-auto">
       <h2 className="text-2xl font-bold mb-6">Báo cáo & Xuất Excel</h2>
